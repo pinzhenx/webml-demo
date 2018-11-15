@@ -1,0 +1,77 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Onnx Importer Test</title>
+  </head>
+  <body>
+    <script src="../../dist/webml-polyfill.js"></script>
+    <script src="../third_party/protobuf.min.js"></script>
+    <script src="../util/base.js"></script>
+    <script src="onnx.js"></script>
+    <script src="OnnxModelUtils.js"></script>
+    <script src="OnnxModelImporterTest.js"></script>
+    <script>
+     window.onload = async function() {
+      async function loadUrl(url) {
+        return new Promise(resolve => {
+          let request = new XMLHttpRequest();
+          request.open('GET', url, true);
+          request.responseType = 'arraybuffer';
+          request.onload = _ => {
+            if (request.readyState === 4 && request.status === 200)
+              resolve(new Uint8Array(request.response));
+          };
+          request.send();
+        });
+      }
+
+      async function loadTensor(tensorFile) {
+        let result = await loadUrl(tensorFile);
+        if (onnx.TensorProto.verify(result))
+          throw new Error(`Invalid tensor`);
+        let tensor = onnx.TensorProto.decode(result);
+        return getTensorData(tensor);
+      }
+
+      function almostEqual(a, b, episilon=1e-5) {
+        return Math.abs(a - b) < episilon;
+      }
+
+      const modelName = 'mobilenetv2-1.0';
+      const modelFile = `./model/${modelName}.onnx`;
+      let input = await loadTensor(`./test_set/${modelName}/test_data_set_1/input_0.pb`);
+      let expect = await loadTensor(`./test_set/${modelName}/test_data_set_1/output_0.pb`);
+      let result = await loadUrl(modelFile);
+      if (onnx.ModelProto.verify(result))
+        throw new Error(`Invalid model`);
+      let onnxModel = onnx.ModelProto.decode(result);
+      let wasmGen = new OnnxModelImporter(onnxModel, 'WASM').layerIterator(input);
+      let glGen = new OnnxModelImporter(onnxModel, 'WebGL2').layerIterator(input);
+      let mlGen = new OnnxModelImporter(onnxModel, 'WebML').layerIterator(input);
+
+      while (true) {
+        let wasmnext = await wasmGen.next();
+        let glnext = await glGen.next();
+        let mlnext = await mlGen.next();
+
+        if (wasmnext.done)
+          break;
+
+        console.debug(`\n\n${wasmnext.value.outputName}`);
+
+        console.debug('\nWASM:');
+        console.debug(wasmnext.value.tensor);
+
+        console.debug('\nGL:');
+        console.debug(glnext.value.tensor);
+
+        console.debug('\nML:');
+        console.debug(mlnext.value.tensor);
+      }
+
+      console.debug('\nExpect:');
+      console.debug(expect);
+    }
+    </script>
+  </body>
+</html>

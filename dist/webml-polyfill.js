@@ -14887,7 +14887,7 @@ var WebGLModel = function () {
         output.buffer.set(operand.dataSync());
       });
 
-      //console.log(tf.memory());
+      console.log(tf.memory());
     }
   }, {
     key: '_executeOperation',

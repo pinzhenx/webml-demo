@@ -152,9 +152,9 @@ function main(camera) {
     };
   }
 
-  $('.seg-map').on('mousemove', function(e) {
-    console.log(getMousePos(segMapCanvas, e));
-  });
+  // $('.seg-map').on('mousemove', function(e) {
+  //   console.log(getMousePos(segMapCanvas, e));
+  // });
 
   // register backends
   if (nnNative) {

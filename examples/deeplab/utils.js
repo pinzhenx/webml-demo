@@ -40,7 +40,7 @@ class Utils {
 
   async predict(imageSource) {
     if (!this.initialized) return;
-    let adjustedImageShape = this.prepareInputTensor(this.inputTensor, imageSource);
+    let scaledImageShape = this.prepareInputTensor(this.inputTensor, imageSource);
     let start = performance.now();
     let result = await this.model.compute(this.inputTensor, this.outputTensor);
     let elapsed = performance.now() - start;
@@ -48,18 +48,21 @@ class Utils {
       time: elapsed.toFixed(2),
       segMap: {
         data: this._argmax(this.outputTensor, 21),
-        shape: adjustedImageShape
+        scaledShape: scaledImageShape,
+        outputShape: this.inputSize.slice(0,2),
       },
       labels: this.labels,
     };
   }
 
   _argmax(array, nLabels) {
+    let start = performance.now();
     let result = [];
     for (let i = 0; i < array.length; i += nLabels) {
       let chann = array.slice(i, i+nLabels);
       result.push(chann.indexOf(Math.max(...chann)));
     }
+    console.log(`Argmax time: ${(performance.now() - start).toFixed(2)} ms`);
     return result;
   }
 
@@ -94,7 +97,7 @@ class Utils {
   }
 
   prepareInputTensor(tensor, image) {
-
+    let start = performance.now();
     const height = this.inputSize[0];
     const width = this.inputSize[1];
     const channels = this.inputSize[2];
@@ -106,7 +109,8 @@ class Utils {
 
     let imWidth = image.naturalWidth | image.videoWidth;
     let imHeight = image.naturalHeight | image.videoHeight;
-    let resizeRatio = Math.max(Math.max(imWidth, imHeight) / 513, 1);
+    // assume width == height
+    let resizeRatio = Math.max(Math.max(imWidth, imHeight) / width, 1);
     let adjustedWidth = Math.floor(imWidth / resizeRatio);
     let adjustedHeight = Math.floor(imHeight / resizeRatio);
     let ctx = canvas.getContext('2d');
@@ -145,6 +149,12 @@ class Utils {
       ctx.putImageData(cornerData, adjustedWidth, adjustedHeight);
     }
 
+    // padding (constant)
+    // ctx.fillRect(adjustedWidth, 0, width, adjustedHeight);
+    // ctx.fillRect(0, adjustedHeight, adjustedWidth, height);
+    // ctx.fillRect(adjustedWidth, adjustedHeight, width, height);
+
+
     let pixels = ctx.getImageData(0, 0, width, height).data;
     // NHWC layout
     for (let y = 0; y < height; ++y) {
@@ -156,6 +166,7 @@ class Utils {
       }
     }
 
+    console.log(`Prepare time: ${(performance.now() - start).toFixed(2)} ms`);
     return [adjustedWidth, adjustedHeight];
   }
 
@@ -165,15 +176,17 @@ class Utils {
     }
   }
 
-  loadModelParam(newModel) {
+  changeModelParam(newModel) {
     this.inputSize = newModel.inputSize;
     this.outputSize = newModel.outputSize;
     this.modelFile = newModel.modelFile;
     this.labelsFile = newModel.labelsFile;
     this.preOptions = newModel.preOptions || {};
     this.postOptions = newModel.postOptions || {};
+    this.numClasses = newModel.numClasses;
     this.inputTensor = new Float32Array(newModel.inputSize.reduce((x,y) => x*y));
-    this.outputTensor = new Float32Array(newModel.outputSize);
+    this.outputTensor =
+      new Float32Array(this.inputSize[0] * this.inputSize[1] * this.numClasses);
     this.tfModel = null;
   }
 }

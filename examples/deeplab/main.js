@@ -183,6 +183,8 @@ function main(camera) {
       progressBar.innerHTML = `${percentComplete}%`;
       if (ev.loaded === ev.total) {
         progressContainer.style.display = "none";
+        progressBar.style = `width: 0%`;
+        progressBar.innerHTML = `0%`;
       }
     }
   }

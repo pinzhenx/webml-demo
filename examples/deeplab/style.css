@@ -26,6 +26,21 @@ video {
   max-width: 513px;
   position: relative;
 }
+.image-wrapper * {
+  pointer-events: none
+}
+.overlay {
+  transition: opacity .1s ease-in-out;
+  background-color: rgba(0,0,0,0.5);
+  border: 5px solid gray;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  opacity: 0;
+}
+.overlay.show {
+  opacity: 1;
+}
 .progress-label {
   float: left;
   margin-right: 1em;

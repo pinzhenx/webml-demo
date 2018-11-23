@@ -257,10 +257,17 @@ function main(camera) {
 
     $('.image-wrapper').on('dragover', e => {
       e.preventDefault();
+    }).on('dragenter', e => {
+      e.preventDefault();
+      $('.overlay').addClass('show');
+    }).on('dragleave', e => {
+      e.preventDefault();
+      $('.overlay').removeClass('show');
     }).on('drop', e => {
       e.preventDefault();
+      $('.overlay').removeClass('show');
       let files = e.originalEvent.dataTransfer.files;
-      if (files.length > 0) {
+      if (files.length > 0 && files[0].type.split('/')[0] === 'image') {
         imageElement.src = URL.createObjectURL(files[0]);
       }
     });

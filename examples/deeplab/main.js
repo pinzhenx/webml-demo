@@ -193,7 +193,7 @@ function main(camera) {
     inferenceTimeElement.innerHTML = `inference time: <em style="color:green;font-weight:bloder;">${result.time} </em>ms`;
 
     let start = performance.now();
-    drawSegMap(segMapCanvas, segMap);
+    drawSegMap(segMapCanvas, result.segMap);
     console.log(`[Main] Draw time: ${(performance.now() - start).toFixed(2)} ms`);
   }
 

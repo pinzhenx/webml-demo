@@ -255,6 +255,16 @@ function main(camera) {
       }
     }, false);
 
+    $('.image-wrapper').on('dragover', e => {
+      e.preventDefault();
+    }).on('drop', e => {
+      e.preventDefault();
+      let files = e.originalEvent.dataTransfer.files;
+      if (files.length > 0) {
+        imageElement.src = URL.createObjectURL(files[0]);
+      }
+    });
+
     imageElement.onload = function () {
       utils.predict(imageElement).then(ret => updateResult(ret));
     };

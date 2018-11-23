@@ -17,8 +17,8 @@ const deeplab224 = {
 function main(camera) {
 
   const availableModels = [
-    deeplab224,
     deeplab513,
+    deeplab224,
   ];
   const videoElement = document.getElementById('video');
   const imageElement = document.getElementById('image');

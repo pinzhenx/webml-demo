@@ -1,35 +1,59 @@
-let colorizer = new Worker('SegMapColorizer.js');
+let pproc = new Worker('PostProcessor.js');
+let _handlerMap = {};
+let registerHandler = (fn, cb) => _handlerMap[fn] = cb;
+pproc.onmessage = (e) => _handlerMap[e.data.fn](...e.data.ret);
 
 function drawSegMap(canvas, segMap) {
-  colorizer.postMessage(segMap);
-
   let outputWidth = segMap.outputShape[0];
   let outputHeight = segMap.outputShape[1];
   let scaledWidth = segMap.scaledShape[0];
   let scaledHeight = segMap.scaledShape[1];
+
+  pproc.postMessage({
+    fn: 'colorizeAndGetLabel',
+    args: [segMap]
+  }, [
+    // transfer outputTensor to worker
+    segMap.data.buffer
+  ]);
+
   let ctx = canvas.getContext('2d');
   let imgData = ctx.getImageData(0, 0, outputWidth, outputHeight);
 
-  colorizer.onmessage = function(e) {
-    let colorSegMap = e.data[0];
-    let labelMap = e.data[1];
+  registerHandler('colorizeAndGetLabel', function(colorSegMap, labelMap) {
     imgData.data.set(colorSegMap);
     canvas.width = scaledWidth;
     canvas.height = scaledHeight;
     ctx.putImageData(imgData, 0, 0, 0, 0, scaledWidth, scaledHeight);
     showLegends(labelMap);
-  };
+  });
 }
 
 function showLegends(labelMap) {
   $('.labels-wrapper').empty();
-  for (let labelId in labelMap) {
+  for (let id in labelMap) {
     let labelDiv =
-      $(`<div class="col-12 seg-label" data-label-id="${labelId}"/>`)
-      .append($(`<span style="color: rgb(${labelMap[labelId][1]})">⬤</span>`))
-      .append(`${labelMap[labelId][0]}`);
-    // labelDiv.mouseenter(_ => drawSegMap(segMapCanvas, segMap, labelId));
-    // labelDiv.mouseleave(_ => drawSegMap(segMapCanvas, segMap));
+      $(`<div class="col-12 seg-label" data-label-id="${id}"/>`)
+      .append($(`<span style="color:rgb(${labelMap[id][1]})">⬤</span>`))
+      .append(`${labelMap[id][0]}`);
     $('.labels-wrapper').append(labelDiv);
   }
+}
+
+function highlightHoverLabel(hoverPos) {
+  if (hoverPos === null) {
+    // clear highlight when mouse leaving canvas
+    $('.seg-label').removeClass('highlight');
+    return;
+  }
+
+  pproc.postMessage({
+    fn: 'getHoverLabelId',
+    args: [hoverPos]
+  });
+
+  registerHandler('getHoverLabelId', function(id) {
+    $('.seg-label').removeClass('highlight');
+    $('.labels-wrapper').find(`[data-label-id="${id}"]`).addClass('highlight');
+  });
 }

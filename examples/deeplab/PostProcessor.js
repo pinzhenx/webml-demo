@@ -1,24 +1,37 @@
+// worker dispatcher
 onmessage = function(e) {
-  let start = performance.now();
+  let ret = eval(e.data.fn)(...e.data.args);
+  postMessage({fn: e.data.fn, ret: ret});
+};
 
+let segMapArgmax = null;
+let segMap = null;
+
+
+function colorizeAndGetLabel(newSegMap) {
   // colorize segmentation map
-  let segMap = e.data;
+  segMap = newSegMap;
   let rawSegMapData = segMap.data;
   let numClasses = segMap.outputShape[2];
-  let segMapData = argmax(rawSegMapData, numClasses);
-  let colorSegMap = colorizeSegMap(segMapData, segMap.outputShape);
+  segMapArgmax = argmax(rawSegMapData, numClasses);
+  let colorSegMap = colorizeSegMap(segMapArgmax, segMap.outputShape);
 
   // generate label map. { labelName: [ labelName, rgbTuple ] }
-  let exisitingLabels = Array.from(new Set(segMapData)); // all existing objects
+  let exisitingLabels = Array.from(new Set(segMapArgmax));
   let labelMap = {};
   for (let labelId of exisitingLabels) {
     let labelName = segMap.labels[labelId];
     let rgbTuple = palette[labelId].slice(0, 3);
     labelMap[labelId] = [labelName, rgbTuple];
   }
-  console.log(`[Worker] Draw time: ${(performance.now()-start).toFixed(2)} ms`);
-  postMessage([colorSegMap, labelMap]);
-};
+  return [colorSegMap, labelMap];
+}
+
+function getHoverLabelId(hoverPos) {
+  let outputW = segMap.outputShape[0];
+  let hoverLabelId = segMapArgmax[hoverPos.x + hoverPos.y * outputW];
+  return [hoverLabelId];
+}
 
 const palette = [
   [45, 52, 54, 255],
@@ -61,10 +74,10 @@ function argmax(array, span) {
   return result;
 }
 
-function colorizeSegMap(segMapData, outputShape) {
+function colorizeSegMap(segMapArgmax, outputShape) {
   const colorSegMap = new Uint8ClampedArray(outputShape[0]*outputShape[1]*4);
-  for (let i = 0, j = 0; i < segMapData.length; i++, j += 4) {
-    let color = palette[segMapData[i]];
+  for (let i = 0, j = 0; i < segMapArgmax.length; i++, j += 4) {
+    let color = palette[segMapArgmax[i]];
     colorSegMap[j] = color[0];
     colorSegMap[j+1] = color[1];
     colorSegMap[j+2] = color[2];

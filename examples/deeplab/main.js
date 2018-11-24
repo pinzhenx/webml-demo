@@ -52,6 +52,7 @@ function main(camera) {
   let currentBackend = '';
   let currentModel = '';
   let streaming = false;
+  let hoverPos = null;
 
   let utils = new Utils();
   // register updateProgress function if progressBar element exist
@@ -208,10 +209,11 @@ function main(camera) {
   function updateResult(result) {
     console.log(`Inference time: ${result.time} ms`);
     let inferenceTimeElement = document.getElementById('inferenceTime');
-    inferenceTimeElement.innerHTML = `inference time: <em style="color:green;font-weight:bloder;">${result.time} </em>ms`;
+    inferenceTimeElement.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${result.time} </em>ms`;
 
     let start = performance.now();
     drawSegMap(segMapCanvas, result.segMap);
+    highlightHoverLabel(hoverPos);
     console.log(`[Main] Draw time: ${(performance.now() - start).toFixed(2)} ms`);
   }
 
@@ -245,9 +247,20 @@ function main(camera) {
   for (let model of availableModels) {
     if (!_fileExists(model.modelFile))
       continue;
-    let dropdownBtn = $('<button class="dropdown-item"/>')
-      .text(model.modelName)
-      .click(_ => changeModel(model));
+    let dropdownBtn = $('<button class="dropdown-item d-flex"/>')
+      .append(
+        $('<div class="model-link"/>')
+          .text(model.modelName)
+          .click(_ => changeModel(model))
+      ).append(
+        $('<div class="netron-link ml-auto pl-2"/>')
+          .text('▶︎')
+          .click(_ => {
+            let modelUrl = new URL(model.modelFile, window.location.href).href;
+            window.open(`https://lutzroeder.github.io/netron/?url=${modelUrl}`);
+          })
+      );
+      
     $('.available-models').append(dropdownBtn);
     if (!currentModel) {
       utils.changeModelParam(model);
@@ -264,6 +277,23 @@ function main(camera) {
     }
   }
 
+  function getMousePos(canvas, evt) {
+    let rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.ceil(evt.clientX - rect.left),
+      y: Math.ceil(evt.clientY - rect.top)
+    };
+  }
+
+  segMapCanvas.addEventListener('mousemove', e => {
+    hoverPos = getMousePos(segMapCanvas, e);
+    highlightHoverLabel(hoverPos);
+  });
+  segMapCanvas.addEventListener('mouseleave', e => {
+    hoverPos = null;
+    highlightHoverLabel(hoverPos);
+  });
+
   // picture or camera
   if (!camera) {
     inputElement.addEventListener('change', (e) => {
@@ -272,19 +302,22 @@ function main(camera) {
         imageElement.src = URL.createObjectURL(files[0]);
       }
     }, false);
-
-    $('.image-wrapper').on('dragover', e => {
+    let imageWrapper = document.getElementsByClassName('image-wrapper')[0];
+    imageWrapper.addEventListener('dragover', e => {
       e.preventDefault();
-    }).on('dragenter', e => {
+    });
+    imageWrapper.addEventListener('dragenter', e => {
       e.preventDefault();
-      $('.overlay').addClass('show');
-    }).on('dragleave', e => {
+      $('.image-wrapper').addClass('show');
+    });
+    imageWrapper.addEventListener('dragleave', e => {
       e.preventDefault();
-      $('.overlay').removeClass('show');
-    }).on('drop', e => {
+      $('.image-wrapper').removeClass('show');
+    });
+    imageWrapper.addEventListener('drop', e => {
       e.preventDefault();
-      $('.overlay').removeClass('show');
-      let files = e.originalEvent.dataTransfer.files;
+      $('.image-wrapper').removeClass('show');
+      let files = e.dataTransfer.files;
       if (files.length > 0 && files[0].type.split('/')[0] === 'image') {
         imageElement.src = URL.createObjectURL(files[0]);
       }

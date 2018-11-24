@@ -181,6 +181,10 @@ class DeepLabImporter {
             throw new Error(`Fuse code ${options.fusedActivationFunction()} is not supported.`);
           }
           inputs.push(this._addScalarInt32(fuseCode));
+          if (options.dilationWFactor() !== 1 || options.dilationWFactor() !== 1) {
+            inputs.push(this._addScalarInt32(options.dilationWFactor()));
+            inputs.push(this._addScalarInt32(options.dilationHFactor()));
+          }
           opType = this._nn.DEPTHWISE_CONV_2D;
         } break;
         case tflite.BuiltinOperator.AVERAGE_POOL_2D: {

@@ -14943,7 +14943,7 @@ var WebGLModel = function () {
         case _Enums.OperationCode.CONV_2D:
           {
             var inCount = inputs.length;
-            if (inCount !== 7 && inCount !== 10) {
+            if (inCount !== 7 && inCount !== 9) {
               throw new Error('Invalid parameters number of CONV_2D');
             }
             var i = 0;
@@ -14975,7 +14975,7 @@ var WebGLModel = function () {
         case _Enums.OperationCode.DEPTHWISE_CONV_2D:
           {
             var _inCount = inputs.length;
-            if (_inCount !== 8 && _inCount !== 11) {
+            if (_inCount !== 8 && _inCount !== 10 && _inCount !== 11) {
               throw new Error('Invalid parameters number of DEPTHWISE_CONV_2D');
             }
             var _i = 0;
@@ -14985,6 +14985,8 @@ var WebGLModel = function () {
             var _output3 = operands[outputs[0]];
             var _strideW = void 0,
                 _strideH = void 0;
+            var dilationW = void 0,
+                dilationH = void 0;
             var depthMultipler = void 0;
             var _activation3 = void 0;
             if (_inCount === 8) {
@@ -14995,6 +14997,16 @@ var WebGLModel = function () {
               depthMultipler = operands[inputs[_i++]].value[0];
               _activation3 = FuseFunctionMap.get(operands[inputs[_i++]].value[0]);
               _output3.assign(_activation3(_input.depthwiseConv2D(_filter, [_strideH, _strideW], _padding).add(_bias)));
+            } else if (_inCount === 10) {
+              var _paddingCode2 = operands[inputs[_i++]].value[0];
+              var _padding2 = PaddingCodeMap.get(_paddingCode2);
+              _strideW = operands[inputs[_i++]].value[0];
+              _strideH = operands[inputs[_i++]].value[0];
+              depthMultipler = operands[inputs[_i++]].value[0];
+              _activation3 = FuseFunctionMap.get(operands[inputs[_i++]].value[0]);
+              dilationW = operands[inputs[_i++]].value[0];
+              dilationH = operands[inputs[_i++]].value[0];
+              _output3.assign(_activation3(_input.depthwiseConv2D(_filter, [_strideH, _strideW], _padding2, 'channels_last', [dilationW, dilationH]).add(_bias)));
             } else {
               var _paddingLeft = operands[inputs[_i++]].value[0];
               var _paddingRight = operands[inputs[_i++]].value[0];
@@ -15023,17 +15035,17 @@ var WebGLModel = function () {
                 filterH = void 0;
             var _activation4 = void 0;
             if (_inCount2 === 7) {
-              var _paddingCode2 = operands[inputs[_i2++]].value[0];
-              var _padding2 = PaddingCodeMap.get(_paddingCode2);
+              var _paddingCode3 = operands[inputs[_i2++]].value[0];
+              var _padding3 = PaddingCodeMap.get(_paddingCode3);
               _strideW2 = operands[inputs[_i2++]].value[0];
               _strideH2 = operands[inputs[_i2++]].value[0];
               filterW = operands[inputs[_i2++]].value[0];
               filterH = operands[inputs[_i2++]].value[0];
               _activation4 = FuseFunctionMap.get(operands[inputs[_i2++]].value[0]);
               if (op === _Enums.OperationCode.AVERAGE_POOL_2D) {
-                _output4.assign(_activation4(_input2.avgPool([filterH, filterW], [_strideH2, _strideW2], _padding2)));
+                _output4.assign(_activation4(_input2.avgPool([filterH, filterW], [_strideH2, _strideW2], _padding3)));
               } else {
-                _output4.assign(_activation4(_input2.maxPool([filterH, filterW], [_strideH2, _strideW2], _padding2)));
+                _output4.assign(_activation4(_input2.maxPool([filterH, filterW], [_strideH2, _strideW2], _padding3)));
               }
             } else {
               var _paddingLeft2 = operands[inputs[_i2++]].value[0];
@@ -15153,7 +15165,7 @@ var WebGLModel = function () {
               var filterH = _filter2.shape[1];
               var filterW = _filter2.shape[2];
               var inChannels = input.shape[3];
-              var depthMultipler = _this3._operands[_inputs[_inputs.length - 2]].value[0];
+              var depthMultipler = 1;
               _this3._operands[_inputs[1]] = _filter2.reshape([filterH, filterW, inChannels, depthMultipler]);
               _filter2.dispose();
             }break;

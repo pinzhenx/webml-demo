@@ -6,9 +6,25 @@ const deeplab513 = {
   outputSize: [513, 513, 21],
 };
 
+const deeplab513dilated = {
+  modelName: 'DeepLab 513 Atrous',
+  modelFile: './model/deeplab_mobilenetv2_513_dilated.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [513, 513, 3],
+  outputSize: [513, 513, 21],
+};
+
 const deeplab224 = {
   modelName: 'DeepLab 224',
   modelFile: './model/deeplab_mobilenetv2_224.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [224, 224, 3],
+  outputSize: [224, 224, 21],
+};
+
+const deeplab224dilated = {
+  modelName: 'DeepLab 224 Atrous',
+  modelFile: './model/deeplab_mobilenetv2_224_dilated.tflite',
   labelsFile: './model/labels.txt',
   inputSize: [224, 224, 3],
   outputSize: [224, 224, 21],
@@ -19,6 +35,8 @@ function main(camera) {
   const availableModels = [
     deeplab513,
     deeplab224,
+    deeplab513dilated,
+    deeplab224dilated,
   ];
   const videoElement = document.getElementById('video');
   const imageElement = document.getElementById('image');

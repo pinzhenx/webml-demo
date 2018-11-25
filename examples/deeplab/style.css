@@ -9,7 +9,7 @@ video {
 .seg-map {
   position: absolute;
   max-width: 100%;
-  opacity: 0.8;
+  opacity: 0.6;
   z-index: 100;
 }
 .seg-label.highlight {
@@ -21,7 +21,10 @@ video {
 }
 .seg-label {
   transition: color .1s ease-in, background-color .1s ease-in;
-  padding: 3px 10px 5px 10px;
+  padding: 3px 10px 3px 10px;
+  border-radius: 15px;
+  height: 30px;
+  font-variant: small-caps;
 }
 .image-wrapper {
   max-height: 513px;

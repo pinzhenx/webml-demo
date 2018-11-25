@@ -104,6 +104,23 @@ function main(camera) {
     }
   }
 
+  function clearCanvas() {
+    const context = segMapCanvas.getContext('2d');
+    context.clearRect(0, 0, segMapCanvas.width, segMapCanvas.height);
+  }
+
+  function adjustOutputArea(newHeight, newWidth) {
+    if (camera) {
+      video.style.maxHeight = newHeight + 'px';
+    } else {
+      image.style.maxHeight = newHeight + 'px';
+    }
+    $('.image-wrapper').css({
+      'max-height': newHeight + 'px',
+      'max-width': newWidth + 'px',
+    });
+  }
+
   function updateBackend() {
     currentBackend = utils.model._backend;
     if (getUrlParams('api_info') === 'true') {
@@ -138,11 +155,6 @@ function main(camera) {
     }, 10);
   }
 
-  function clearCanvas() {
-    const context = segMapCanvas.getContext('2d');
-    context.clearRect(0, 0, segMapCanvas.width, segMapCanvas.height);
-  }
-
   function updateModel() {
     selectModel.innerHTML = currentModel;
   }
@@ -155,17 +167,10 @@ function main(camera) {
     utils.deleteAll();
     utils.changeModelParam(newModel);
     clearCanvas();
+    adjustOutputArea(newModel.inputSize[0], newModel.inputSize[1]);
     progressContainer.style.display = "inline";
     selectModel.innerHTML = 'Setting...';
-    if (camera) {
-      video.style.maxHeight = newModel.inputSize[0] + 'px';
-    } else {
-      image.style.maxHeight = newModel.inputSize[0] + 'px';
-    }
-    $('.image-wrapper').css({
-      'max-height': newModel.inputSize[0] + 'px',
-      'max-width': newModel.inputSize[0] + 'px',
-    });
+
     setTimeout(() => {
       utils.init(utils.model._backend).then(() => {
         currentModel = newModel.modelName;
@@ -214,7 +219,15 @@ function main(camera) {
     let start = performance.now();
     drawSegMap(segMapCanvas, result.segMap);
     highlightHoverLabel(hoverPos);
-    console.log(`[Main] Draw time: ${(performance.now() - start).toFixed(2)} ms`);
+    console.log(`[Main]   Draw time: ${(performance.now() - start).toFixed(2)} ms`);
+  }
+
+  function getMousePos(canvas, evt) {
+    let rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.ceil(evt.clientX - rect.left),
+      y: Math.ceil(evt.clientY - rect.top)
+    };
   }
 
   // register backends
@@ -246,50 +259,35 @@ function main(camera) {
   // register models
   for (let model of availableModels) {
     if (!_fileExists(model.modelFile))
-      continue;
+      return;
+
     let dropdownBtn = $('<button class="dropdown-item d-flex"/>')
       .append(
         $('<div class="model-link"/>')
           .text(model.modelName)
           .click(_ => changeModel(model))
       ).append(
-        $('<div class="netron-link ml-auto pl-2"/>')
-          .text('▶︎')
+        $('<div class="netron-link ml-auto pl-2">')
+          .text('▶')
           .click(_ => {
             let modelUrl = new URL(model.modelFile, window.location.href).href;
             window.open(`https://lutzroeder.github.io/netron/?url=${modelUrl}`);
           })
       );
-      
+
     $('.available-models').append(dropdownBtn);
     if (!currentModel) {
       utils.changeModelParam(model);
-      if (camera) {
-        video.style.maxHeight = model.inputSize[0] + 'px';
-      } else {
-        image.style.maxHeight = model.inputSize[0] + 'px';
-      }
-      $('.image-wrapper').css({
-        'max-height': model.inputSize[0] + 'px',
-        'max-width': model.inputSize[0] + 'px',
-      });
+      adjustOutputArea(model.inputSize[0], model.inputSize[1]);
       currentModel = model.modelName;
     }
   }
 
-  function getMousePos(canvas, evt) {
-    let rect = canvas.getBoundingClientRect();
-    return {
-      x: Math.ceil(evt.clientX - rect.left),
-      y: Math.ceil(evt.clientY - rect.top)
-    };
-  }
-
-  segMapCanvas.addEventListener('mousemove', e => {
+  segMapCanvas.addEventListener('mousemove', (e) => {
     hoverPos = getMousePos(segMapCanvas, e);
     highlightHoverLabel(hoverPos);
   });
-  segMapCanvas.addEventListener('mouseleave', e => {
+  segMapCanvas.addEventListener('mouseleave', (e) => {
     hoverPos = null;
     highlightHoverLabel(hoverPos);
   });
@@ -303,25 +301,25 @@ function main(camera) {
       }
     }, false);
     let imageWrapper = document.getElementsByClassName('image-wrapper')[0];
-    imageWrapper.addEventListener('dragover', e => {
+    imageWrapper.ondragover = (e) => {
       e.preventDefault();
-    });
-    imageWrapper.addEventListener('dragenter', e => {
+    };
+    imageWrapper.ondragenter = (e) => {
       e.preventDefault();
       $('.image-wrapper').addClass('show');
-    });
-    imageWrapper.addEventListener('dragleave', e => {
+    };
+    imageWrapper.ondragleave = (e) => {
       e.preventDefault();
       $('.image-wrapper').removeClass('show');
-    });
-    imageWrapper.addEventListener('drop', e => {
+    };
+    imageWrapper.ondrop = (e) => {
       e.preventDefault();
       $('.image-wrapper').removeClass('show');
       let files = e.dataTransfer.files;
       if (files.length > 0 && files[0].type.split('/')[0] === 'image') {
         imageElement.src = URL.createObjectURL(files[0]);
       }
-    });
+    };
 
     imageElement.onload = function () {
       utils.predict(imageElement).then(ret => updateResult(ret));
@@ -365,7 +363,8 @@ function main(camera) {
     function startPredict() {
       if (streaming) {
         stats.begin();
-        utils.predict(videoElement).then(ret => updateResult(ret)).then(() => {
+        utils.predict(videoElement).then(ret => {
+          updateResult(ret);
           stats.end();
           setTimeout(startPredict, 0);
         });

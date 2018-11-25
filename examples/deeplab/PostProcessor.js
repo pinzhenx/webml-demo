@@ -1,35 +1,48 @@
-// worker dispatcher
-onmessage = function(e) {
-  let ret = eval(e.data.fn)(...e.data.args);
-  postMessage({fn: e.data.fn, ret: ret});
+onmessage = function (e) {
+  let fn = e.data[0];
+  let args = e.data[1];
+  let ret = eval(fn)(...args);
+
+  // only support transferring buffer property, spcifically ArrayBuffer
+  let trans = ret.filter(o => o.hasOwnProperty('transfer')).map(o => o.buffer);
+  postMessage([fn, ret], trans);
 };
 
-let segMapArgmax = null;
+function _move(obj) {
+  obj.transfer = true; // tagged for transfer
+  return obj;
+}
+
+
+let predictions = null;
 let segMap = null;
 
+function colorizeAndPredictLabels(newSegMap) {
+  let start = performance.now();
 
-function colorizeAndGetLabel(newSegMap) {
   // colorize segmentation map
   segMap = newSegMap;
   let rawSegMapData = segMap.data;
   let numClasses = segMap.outputShape[2];
-  segMapArgmax = argmax(rawSegMapData, numClasses);
-  let colorSegMap = colorizeSegMap(segMapArgmax, segMap.outputShape);
+  predictions = argmax(rawSegMapData, numClasses);
+  let colorSegMap = colorizeSegMap(predictions, segMap.outputShape);
 
   // generate label map. { labelName: [ labelName, rgbTuple ] }
-  let exisitingLabels = Array.from(new Set(segMapArgmax));
+  let uniqueLabels = new Set(predictions);
   let labelMap = {};
-  for (let labelId of exisitingLabels) {
+  for (let labelId of uniqueLabels) {
     let labelName = segMap.labels[labelId];
     let rgbTuple = palette[labelId].slice(0, 3);
     labelMap[labelId] = [labelName, rgbTuple];
   }
-  return [colorSegMap, labelMap];
+
+  console.log(`[Worker] Draw time: ${(performance.now() - start).toFixed(2)} ms`);
+  return [_move(colorSegMap), labelMap];
 }
 
 function getHoverLabelId(hoverPos) {
   let outputW = segMap.outputShape[0];
-  let hoverLabelId = segMapArgmax[hoverPos.x + hoverPos.y * outputW];
+  let hoverLabelId = predictions[hoverPos.x + hoverPos.y * outputW];
   return [hoverLabelId];
 }
 
@@ -64,8 +77,8 @@ function argmax(array, span) {
     let maxVal = Number.MIN_SAFE_INTEGER;
     let maxIdx = 0;
     for (let j = 0; j < span; j++) {
-      if (array[i*span+j] > maxVal) {
-        maxVal = array[i*span+j];
+      if (array[i * span + j] > maxVal) {
+        maxVal = array[i * span + j];
         maxIdx = j;
       }
     }
@@ -74,14 +87,17 @@ function argmax(array, span) {
   return result;
 }
 
-function colorizeSegMap(segMapArgmax, outputShape) {
-  const colorSegMap = new Uint8ClampedArray(outputShape[0]*outputShape[1]*4);
-  for (let i = 0, j = 0; i < segMapArgmax.length; i++, j += 4) {
-    let color = palette[segMapArgmax[i]];
+function colorizeSegMap(predictions, outputShape) {
+  const outputW = outputShape[0];
+  const outputH = outputShape[1];
+  const imageChannels = 4;
+  const colorSegMap = new Uint8ClampedArray(outputW * outputH * imageChannels);
+  for (let i = 0, j = 0; i < predictions.length; i++, j += imageChannels) {
+    let color = palette[predictions[i]];
     colorSegMap[j] = color[0];
-    colorSegMap[j+1] = color[1];
-    colorSegMap[j+2] = color[2];
-    colorSegMap[j+3] = color[3];
+    colorSegMap[j + 1] = color[1];
+    colorSegMap[j + 2] = color[2];
+    colorSegMap[j + 3] = color[3];
   }
   return colorSegMap;
 }

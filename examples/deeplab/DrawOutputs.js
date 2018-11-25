@@ -1,7 +1,20 @@
-let pproc = new Worker('PostProcessor.js');
-let _handlerMap = {};
-let registerHandler = (fn, cb) => _handlerMap[fn] = cb;
-pproc.onmessage = (e) => _handlerMap[e.data.fn](...e.data.ret);
+class MultiTaskWorker extends Worker {
+  constructor(src) {
+    super(src);
+    this._handlers = {};
+    this.onmessage = function (e) {
+      let fn = e.data[0];
+      let ret = e.data[1];
+      this._handlers[fn](...ret);
+    };
+    this.dispatch = function (fn, msg, cb) {
+      this.postMessage([fn, msg.args], msg.transferList);
+      this._handlers[fn] = cb;
+    };
+  }
+}
+
+const pp = new MultiTaskWorker('PostProcessor.js');
 
 function drawSegMap(canvas, segMap) {
   let outputWidth = segMap.outputShape[0];
@@ -9,35 +22,18 @@ function drawSegMap(canvas, segMap) {
   let scaledWidth = segMap.scaledShape[0];
   let scaledHeight = segMap.scaledShape[1];
 
-  pproc.postMessage({
-    fn: 'colorizeAndGetLabel',
-    args: [segMap]
-  }, [
-    // transfer outputTensor to worker
-    segMap.data.buffer
-  ]);
-
-  let ctx = canvas.getContext('2d');
-  let imgData = ctx.getImageData(0, 0, outputWidth, outputHeight);
-
-  registerHandler('colorizeAndGetLabel', function(colorSegMap, labelMap) {
+  pp.dispatch('colorizeAndPredictLabels', {
+    args: [segMap],
+    transferList: [segMap.data.buffer],
+  }, function (colorSegMap, labelMap) {
+    let ctx = canvas.getContext('2d');
+    let imgData = ctx.getImageData(0, 0, outputWidth, outputHeight);
     imgData.data.set(colorSegMap);
     canvas.width = scaledWidth;
     canvas.height = scaledHeight;
     ctx.putImageData(imgData, 0, 0, 0, 0, scaledWidth, scaledHeight);
-    showLegends(labelMap);
+    _showLegends(labelMap);
   });
-}
-
-function showLegends(labelMap) {
-  $('.labels-wrapper').empty();
-  for (let id in labelMap) {
-    let labelDiv =
-      $(`<div class="col-12 seg-label" data-label-id="${id}"/>`)
-      .append($(`<span style="color:rgb(${labelMap[id][1]})">⬤</span>`))
-      .append(`${labelMap[id][0]}`);
-    $('.labels-wrapper').append(labelDiv);
-  }
 }
 
 function highlightHoverLabel(hoverPos) {
@@ -47,13 +43,20 @@ function highlightHoverLabel(hoverPos) {
     return;
   }
 
-  pproc.postMessage({
-    fn: 'getHoverLabelId',
-    args: [hoverPos]
-  });
-
-  registerHandler('getHoverLabelId', function(id) {
+  pp.dispatch('getHoverLabelId', {
+    args: [hoverPos],
+  }, function (id) {
     $('.seg-label').removeClass('highlight');
     $('.labels-wrapper').find(`[data-label-id="${id}"]`).addClass('highlight');
   });
+}
+
+function _showLegends(labelMap) {
+  $('.labels-wrapper').empty();
+  for (let id in labelMap) {
+    let labelDiv = $(`<div class="col-12 seg-label" data-label-id="${id}"/>`)
+      .append($(`<span style="color:rgb(${labelMap[id][1]})">⬤</span>`))
+      .append(`${labelMap[id][0]}`);
+    $('.labels-wrapper').append(labelDiv);
+  }
 }

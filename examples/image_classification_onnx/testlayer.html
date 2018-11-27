@@ -37,7 +37,7 @@
         return Math.abs(a - b) < episilon;
       }
 
-      const modelName = 'mobilenetv2-1.0';
+      const modelName = getUrlParams('model') || 'squeezenet1.1';
       const modelFile = `./model/${modelName}.onnx`;
       let input = await loadTensor(`./test_set/${modelName}/test_data_set_1/input_0.pb`);
       let expect = await loadTensor(`./test_set/${modelName}/test_data_set_1/output_0.pb`);

@@ -71,25 +71,25 @@ const inceptionv2 = {
   outputSize: 1000,
 };
 
-const densenet = {
-  modelName: 'Densenet',
-  modelFile: './model/densenet.onnx',
-  labelsFile: './model/labels.txt',
-  inputSize: [224, 224, 3],
-  outputSize: 1000,
-  preOptions: {
-    // // https://github.com/shicai/DenseNet-Caffe
-    // mean:[123.68, 116.78, 103.94],
-    // std: [1/0.017, 1/0.017, 1/0.017],
+// const densenet = {
+//   modelName: 'Densenet',
+//   modelFile: './model/densenet.onnx',
+//   labelsFile: './model/labels.txt',
+//   inputSize: [224, 224, 3],
+//   outputSize: 1000,
+//   preOptions: {
+//     // // https://github.com/shicai/DenseNet-Caffe
+//     // mean:[123.68, 116.78, 103.94],
+//     // std: [1/0.017, 1/0.017, 1/0.017],
 
-    mean: [0.485, 0.456, 0.406],
-    std: [0.229, 0.224, 0.225],
-    norm: true
-  },
-  postOptions: {
-    softmax: true,
-  }
-};
+//     mean: [0.485, 0.456, 0.406],
+//     std: [0.229, 0.224, 0.225],
+//     norm: true
+//   },
+//   postOptions: {
+//     softmax: true,
+//   }
+// };
 
 function main(camera) {
 

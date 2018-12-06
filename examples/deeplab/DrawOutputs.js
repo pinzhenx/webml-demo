@@ -10,7 +10,16 @@ class Renderer {
     this._segMap;
     this._imageTexId = 0;
     this._maskTexId = 1;
+    this._zoom = 2;
     this._bgcolor = [57, 135, 189, 255]; // rgba
+  }
+
+  get zoom() {
+    return this._zoom;
+  }
+
+  set zoom(val) {
+    this._zoom = val;
   }
 
   get bgcolor() {
@@ -21,6 +30,14 @@ class Renderer {
     this._bgcolor[0] = rgb[0];
     this._bgcolor[1] = rgb[1];
     this._bgcolor[2] = rgb[2];
+  }
+
+  get zoom() {
+    return this._zoom;
+  }
+
+  set zoom(val) {
+    this._zoom = val;
   }
 
   setup() {
@@ -108,9 +125,6 @@ class Renderer {
         this._gl.TEXTURE_2D,
         0,
         this._gl.RGBA,
-        scaledShape[0],
-        scaledShape[1],
-        0,
         this._gl.RGBA,
         this._gl.UNSIGNED_BYTE,
         canvas
@@ -121,7 +135,7 @@ class Renderer {
     });
   }
 
-  drawOutputs(scaledShape, newSegMap) {
+  drawOutputs(newSegMap) {
 
     let start = performance.now();
 
@@ -131,14 +145,14 @@ class Renderer {
       this._mask = this._argmaxPerson(newSegMap.data, numOutputClasses);
     }
 
-    let scaledWidth = scaledShape[0];
-    let scaledHeight = scaledShape[1];
+    let scaledWidth = this._segMap.scaledShape[0];
+    let scaledHeight = this._segMap.scaledShape[1];
     let outputWidth = this._segMap.outputShape[0];
     let outputHeight = this._segMap.outputShape[1];
     let isScaled = outputWidth === scaledWidth || outputHeight === scaledHeight;
 
-    this._gl.canvas.width = scaledWidth;
-    this._gl.canvas.height = scaledHeight;
+    this._gl.canvas.width = scaledWidth * this._zoom;
+    this._gl.canvas.height = scaledHeight * this._zoom;
 
     // upload mask
     this._activeTexture(this._maskTexId);

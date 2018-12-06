@@ -56,6 +56,7 @@ function main(camera) {
   const wasm = document.getElementById('wasm');
   const webgl = document.getElementById('webgl');
   const webml = document.getElementById('webml');
+  const zoomSlider = document.getElementById('zoomSlider');
   const outputCanvas = document.getElementById('output');
   const preprocessCanvas = document.createElement('canvas');
   let scaledShape = [];
@@ -63,6 +64,9 @@ function main(camera) {
   let currentModel = '';
   let currentPrefer = '';
   let streaming = false;
+  let zoom = 1;
+  let bgcolor = [0, 0, 0];
+
 
   let renderer = new Renderer(outputCanvas);
   renderer.setup();
@@ -70,7 +74,7 @@ function main(camera) {
   let utils = new Utils();
   // register updateProgress function if progressBar element exist
   utils.progressCallback = updateProgress;
-  let bgcolor = renderer.bgcolor;
+  bgcolor = renderer.bgcolor;
   let colorPicker = new iro.ColorPicker("#color-picker-container", {
     width: 200,
     height: 200,
@@ -79,10 +83,22 @@ function main(camera) {
     sliderMargin: 12,
     sliderHeight: 20,
   });
+  $('.bg-value').html(colorPicker.color.hexString);
   colorPicker.on('color:change', function(color, changes) {
+    $('.bg-value').html(color.hexString);
     renderer.bgcolor = [color.rgb.r, color.rgb.g, color.rgb.b];
-    renderer.drawOutputs(scaledShape);
+    renderer.drawOutputs();
   });
+
+  zoom = zoomSlider.value / 100;
+  $('.zoom-value').html(zoom + 'x');
+  renderer.zoom = zoom;
+  zoomSlider.oninput = (e) => {
+    zoom = zoomSlider.value / 100;
+    $('.zoom-value').html(zoom + 'x');
+    renderer.zoom = zoom;
+    renderer.drawOutputs();
+  };
 
 
   function checkPreferParam() {
@@ -128,19 +144,6 @@ function main(camera) {
     if (preferAlertElem !== null) {
       preferAlertElem.remove();
     }
-  }
-
-  function adjustOutputArea(newHeight, newWidth) {
-    // if (camera) {
-    //   video.style.maxHeight = newHeight + 'px';
-    // } else {
-    //   image.style.maxHeight = newHeight + 'px';
-    // }
-    
-    $('.image-wrapper').css({
-      'max-height': newHeight + 'px',
-      'max-width': newWidth + 'px',
-    });
   }
 
   function updateBackend() {
@@ -198,7 +201,6 @@ function main(camera) {
     streaming = false;
     utils.deleteAll();
     utils.changeModelParam(newModel);
-    adjustOutputArea(newModel.inputSize[0], newModel.inputSize[1]);
     currentPrefer = "sustained";
     progressContainer.style.display = "inline";
     selectModel.innerHTML = 'Setting...';
@@ -282,14 +284,15 @@ function main(camera) {
 
   function predictAndDraw(imageSource) {
     scaledShape = utils.prepareCanvas(preprocessCanvas, imageSource);
-    let id = renderer.uploadNewTexture(preprocessCanvas, scaledShape);
+    let id = renderer.uploadNewTexture(imageSource, scaledShape);
     return utils.predict(preprocessCanvas).then(result => {
 
       console.log(`Inference time: ${result.time} ms`);
       inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${result.time} </em>ms`;
   
       let start = performance.now();
-      renderer.drawOutputs(scaledShape, result.segMap);
+      result.segMap.scaledShape = scaledShape;
+      renderer.drawOutputs(result.segMap);
     });
   }
 
@@ -357,7 +360,6 @@ function main(camera) {
     $('.available-models').append(dropdownBtn);
     if (!currentModel) {
       utils.changeModelParam(model);
-      adjustOutputArea(model.inputSize[0], model.inputSize[1]);
       currentModel = model.modelName;
     }
   }
@@ -433,9 +435,7 @@ function main(camera) {
     navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
-        facingMode: "environment",
-        // width: 224,
-        // height: 224,
+        facingMode: 'environment',
       }
     }).then((stream) => {
       video.srcObject = stream;

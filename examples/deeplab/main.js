@@ -30,13 +30,20 @@ const deeplab224dilated = {
   outputSize: [224, 224, 21],
 };
 
+const preferMap = {
+  'MPS': 'sustained',
+  'BNNS': 'fast',
+  'sustained': 'MPS',
+  'fast': 'BNNS',
+};
+
 function main(camera) {
 
   const availableModels = [
-    deeplab513,
-    deeplab224,
     deeplab513dilated,
     deeplab224dilated,
+    deeplab513,
+    deeplab224,
   ];
   const videoElement = document.getElementById('video');
   const imageElement = document.getElementById('image');
@@ -44,19 +51,38 @@ function main(camera) {
   const buttonEelement = document.getElementById('button');
   const progressContainer = document.getElementById('progressContainer');
   const progressBar = document.getElementById('progressBar');
+  const selectPrefer = document.getElementById('selectPrefer');
   const backend = document.getElementById('backend');
   const wasm = document.getElementById('wasm');
   const webgl = document.getElementById('webgl');
   const webml = document.getElementById('webml');
-  const segMapCanvas = document.getElementsByClassName('seg-map')[0];
+  const outputCanvas = document.getElementById('output');
+  const preprocessCanvas = document.createElement('canvas');
+  let scaledShape = [];
   let currentBackend = '';
   let currentModel = '';
+  let currentPrefer = '';
   let streaming = false;
-  let hoverPos = null;
+
+  let renderer = new Renderer(outputCanvas);
+  renderer.setup();
 
   let utils = new Utils();
   // register updateProgress function if progressBar element exist
   utils.progressCallback = updateProgress;
+  let bgcolor = renderer.bgcolor;
+  let colorPicker = new iro.ColorPicker("#color-picker-container", {
+    width: 200,
+    height: 200,
+    color: {r: bgcolor[0], g: bgcolor[1], b: bgcolor[2]},
+    markerRadius: 5,
+    sliderMargin: 12,
+    sliderHeight: 20,
+  });
+  colorPicker.on('color:change', function(color, changes) {
+    renderer.bgcolor = [color.rgb.r, color.rgb.g, color.rgb.b];
+    renderer.drawOutputs(scaledShape);
+  });
 
 
   function checkPreferParam() {
@@ -104,17 +130,13 @@ function main(camera) {
     }
   }
 
-  function clearCanvas() {
-    const context = segMapCanvas.getContext('2d');
-    context.clearRect(0, 0, segMapCanvas.width, segMapCanvas.height);
-  }
-
   function adjustOutputArea(newHeight, newWidth) {
-    if (camera) {
-      video.style.maxHeight = newHeight + 'px';
-    } else {
-      image.style.maxHeight = newHeight + 'px';
-    }
+    // if (camera) {
+    //   video.style.maxHeight = newHeight + 'px';
+    // } else {
+    //   image.style.maxHeight = newHeight + 'px';
+    // }
+    
     $('.image-wrapper').css({
       'max-height': newHeight + 'px',
       'max-width': newWidth + 'px',
@@ -122,7 +144,6 @@ function main(camera) {
   }
 
   function updateBackend() {
-    currentBackend = utils.model._backend;
     if (getUrlParams('api_info') === 'true') {
       backend.innerHTML = currentBackend === 'WebML' ? currentBackend + '/' + getNativeAPI() : currentBackend;
     } else {
@@ -135,13 +156,21 @@ function main(camera) {
       return;
     }
     streaming = false;
+    if (newBackend !== "WebML") {
+      selectPrefer.style.display = 'none';
+    } else {
+      selectPrefer.style.display = 'inline';
+    }
     utils.deleteAll();
     backend.innerHTML = 'Setting...';
     setTimeout(() => {
-      utils.init(newBackend).then(() => {
+      utils.init(newBackend, currentPrefer).then(() => {
+        currentBackend = newBackend;
+        updatePrefer();
+        updateModel();
         updateBackend();
         if (!camera) {
-          utils.predict(imageElement).then(ret => updateResult(ret));
+          predictAndDraw(imageElement);
         } else {
           streaming = true;
           startPredict();
@@ -151,6 +180,9 @@ function main(camera) {
         console.log(e);
         showAlert(newBackend);
         changeBackend(currentBackend, true);
+        updatePrefer();
+        updateModel();
+        updateBackend();
       });
     }, 10);
   }
@@ -166,23 +198,60 @@ function main(camera) {
     streaming = false;
     utils.deleteAll();
     utils.changeModelParam(newModel);
-    clearCanvas();
     adjustOutputArea(newModel.inputSize[0], newModel.inputSize[1]);
+    currentPrefer = "sustained";
     progressContainer.style.display = "inline";
     selectModel.innerHTML = 'Setting...';
 
     setTimeout(() => {
-      utils.init(utils.model._backend).then(() => {
+      utils.init(currentBackend, currentPrefer).then(() => {
         currentModel = newModel.modelName;
+        updatePrefer();
+        updateBackend();
         updateModel();
         if (!camera) {
-          utils.predict(imageElement).then(ret => updateResult(ret));
+          predictAndDraw(imageElement);
         } else {
           streaming = true;
           startPredict();
         }
       });
     }, 10);
+  }
+
+  function changePrefer(newPrefer, force) {
+    if (currentPrefer === newPrefer && !force) {
+      return;
+    }
+    streaming = false;
+    utils.deleteAll();
+    selectPrefer.innerHTML = 'Setting...';
+    setTimeout(() => {
+      utils.init(currentBackend, newPrefer).then(() => {
+        currentPrefer = newPrefer;
+        updatePrefer();
+        updateModel();
+        updateBackend();
+        if (!camera) {
+          predictAndDraw(imageElement);
+        } else {
+          streaming = true;
+          startPredict();
+        }
+      }).catch((e) => {
+        console.warn(`Failed to change backend ${preferMap[newPrefer]}, switch back to ${preferMap[currentPrefer]}`);
+        console.error(e);
+        showAlert(preferMap[newPrefer]);
+        changePrefer(currentPrefer, true);
+        updatePrefer();
+        updateModel();
+        updateBackend();
+      });
+    }, 10);
+  }
+
+  function updatePrefer() {
+    selectPrefer.innerHTML = preferMap[currentPrefer];
   }
 
   function _fileExists(url) {
@@ -211,15 +280,17 @@ function main(camera) {
     }
   }
 
-  function updateResult(result) {
-    console.log(`Inference time: ${result.time} ms`);
-    let inferenceTimeElement = document.getElementById('inferenceTime');
-    inferenceTimeElement.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${result.time} </em>ms`;
+  function predictAndDraw(imageSource) {
+    scaledShape = utils.prepareCanvas(preprocessCanvas, imageSource);
+    let id = renderer.uploadNewTexture(preprocessCanvas, scaledShape);
+    return utils.predict(preprocessCanvas).then(result => {
 
-    let start = performance.now();
-    drawSegMap(segMapCanvas, result.segMap);
-    highlightHoverLabel(hoverPos);
-    console.log(`[Main]   Draw time: ${(performance.now() - start).toFixed(2)} ms`);
+      console.log(`Inference time: ${result.time} ms`);
+      inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${result.time} </em>ms`;
+  
+      let start = performance.now();
+      renderer.drawOutputs(scaledShape, result.segMap);
+    });
   }
 
   function getMousePos(canvas, evt) {
@@ -256,6 +327,14 @@ function main(camera) {
     };
   }
 
+  if (currentBackend === '') {
+    if (nnNative) {
+      currentBackend = 'WebML';
+    } else {
+      currentBackend = 'WebGL';
+    }
+  }
+
   // register models
   for (let model of availableModels) {
     if (!_fileExists(model.modelFile))
@@ -283,16 +362,23 @@ function main(camera) {
     }
   }
 
-  segMapCanvas.addEventListener('mousemove', (e) => {
-    hoverPos = getMousePos(segMapCanvas, e);
-    highlightHoverLabel(hoverPos);
-  });
-  segMapCanvas.addEventListener('mouseleave', (e) => {
-    hoverPos = null;
-    highlightHoverLabel(hoverPos);
-  });
+  // register prefers
+  if (getOS() === 'Mac OS' && currentBackend === 'WebML') {
+    $('.prefer').css("display","inline");
+    let MPS = $('<button class="dropdown-item"/>')
+      .text('MPS')
+      .click(_ => changePrefer(preferMap['MPS']));
+    $('.preference').append(MPS);
+    let BNNS = $('<button class="dropdown-item"/>')
+      .text('BNNS')
+      .click(_ => changePrefer(preferMap['BNNS']));
+    $('.preference').append(BNNS);
+    if (!currentPrefer) {
+      currentPrefer = "sustained";
+    }
+  }
 
-  // picture or camera
+  // image or camera
   if (!camera) {
     inputElement.addEventListener('change', (e) => {
       let files = e.target.files;
@@ -322,13 +408,14 @@ function main(camera) {
     };
 
     imageElement.onload = function () {
-      utils.predict(imageElement).then(ret => updateResult(ret));
+      predictAndDraw(imageElement);
     };
 
-    utils.init('WebGL').then(() => {
+    utils.init(currentBackend, currentPrefer).then(() => {
       updateBackend();
       updateModel();
-      utils.predict(imageElement).then(ret => updateResult(ret));
+      updatePrefer();
+      predictAndDraw(imageElement);
       buttonEelement.setAttribute('class', 'btn btn-primary');
       inputElement.removeAttribute('disabled');
     }).catch((e) => {
@@ -343,11 +430,19 @@ function main(camera) {
     stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
     document.body.appendChild(stats.dom);
 
-    navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: "environment"}}).then((stream) => {
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: "environment",
+        // width: 224,
+        // height: 224,
+      }
+    }).then((stream) => {
       video.srcObject = stream;
-      utils.init('WebGL').then(() => {
+      utils.init(currentBackend, currentPrefer).then(() => {
         updateBackend();
         updateModel();
+        updatePrefer();
         streaming = true;
         startPredict();
       }).catch((e) => {
@@ -363,8 +458,7 @@ function main(camera) {
     function startPredict() {
       if (streaming) {
         stats.begin();
-        utils.predict(videoElement).then(ret => {
-          updateResult(ret);
+        predictAndDraw(videoElement).then(_ => {
           stats.end();
           setTimeout(startPredict, 0);
         });

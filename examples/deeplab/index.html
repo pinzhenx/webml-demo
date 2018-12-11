@@ -55,9 +55,35 @@
         </div>
 
         <div class="col-lg-2 offset-lg-0 col-md-4 offset-md-4 controls">
+
+          <div class="row">
+            <div class="label">
+              EFFECT:</span>
+            </div> 
+            <div class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
+              <label class="btn btn-secondary active">
+                <input type="radio" name="options" id="option1" autocomplete="off" checked> Active
+              </label>
+              <label class="btn btn-secondary">
+                <input type="radio" name="options" id="option2" autocomplete="off"> Radio
+              </label>
+              <label class="btn btn-secondary">
+                <input type="radio" name="options" id="option3" autocomplete="off"> Radio
+              </label>
+            </div>
+          </div>
+
+
           <div class="row">
             <div class="label">
               ZOOM: <span class="zoom-value"></span>
+            </div>  
+            <div class="slidecontainer"><input type="range" min="50" max="300" value="100" class="slider" id="zoomSlider"></div>
+          </div>
+
+          <div class="row">
+            <div class="label">
+              BLUR RADIUS: <span class="blur-radius-value"></span>
             </div>  
             <div class="slidecontainer"><input type="range" min="50" max="300" value="100" class="slider" id="zoomSlider"></div>
           </div>

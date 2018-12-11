@@ -40,8 +40,8 @@ const preferMap = {
 function main(camera) {
 
   const availableModels = [
-    deeplab513dilated,
     deeplab224dilated,
+    deeplab513dilated,
     deeplab513,
     deeplab224,
   ];
@@ -64,8 +64,7 @@ function main(camera) {
   let currentModel = '';
   let currentPrefer = '';
   let streaming = false;
-  let zoom = 1;
-  let bgcolor = [0, 0, 0];
+  let stats;
 
 
   let renderer = new Renderer(outputCanvas);
@@ -74,31 +73,40 @@ function main(camera) {
   let utils = new Utils();
   // register updateProgress function if progressBar element exist
   utils.progressCallback = updateProgress;
-  bgcolor = renderer.bgcolor;
+
   let colorPicker = new iro.ColorPicker("#color-picker-container", {
     width: 200,
     height: 200,
-    color: {r: bgcolor[0], g: bgcolor[1], b: bgcolor[2]},
+    color: {
+      r: renderer.bgcolor[0],
+      g: renderer.bgcolor[1],
+      b: renderer.bgcolor[2]
+    },
     markerRadius: 5,
     sliderMargin: 12,
     sliderHeight: 20,
   });
   $('.bg-value').html(colorPicker.color.hexString);
-  colorPicker.on('color:change', function(color, changes) {
+  colorPicker.on('color:change', function(color) {
     $('.bg-value').html(color.hexString);
     renderer.bgcolor = [color.rgb.r, color.rgb.g, color.rgb.b];
-    renderer.drawOutputs();
   });
 
-  zoom = zoomSlider.value / 100;
-  $('.zoom-value').html(zoom + 'x');
-  renderer.zoom = zoom;
+  zoomSlider.value = renderer.zoom * 100;
+  $('.zoom-value').html(renderer.zoom + 'x');
   zoomSlider.oninput = (e) => {
-    zoom = zoomSlider.value / 100;
+    let zoom = zoomSlider.value / 100;
     $('.zoom-value').html(zoom + 'x');
     renderer.zoom = zoom;
-    renderer.drawOutputs();
   };
+
+  $('.effects-select .btn input').filter(function() {
+    return this.value === renderer.effect;
+  }).parent().toggleClass('active');
+  $('.effects-select .btn').click((e) => {
+    e.preventDefault();
+    renderer.effect = e.target.children[0].value;
+  });
 
 
   function checkPreferParam() {
@@ -256,18 +264,6 @@ function main(camera) {
     selectPrefer.innerHTML = preferMap[currentPrefer];
   }
 
-  function _fileExists(url) {
-    var exists;
-    $.ajax({
-      url: url,
-      async: false,
-      type: 'HEAD',
-      error: function() { exists = 0; },
-      success: function() { exists = 1; }
-    });
-    return exists === 1;
-  }
-
   function updateProgress(ev) {
     if (ev.lengthComputable) {
       let percentComplete = ev.loaded / ev.total * 100;
@@ -284,7 +280,6 @@ function main(camera) {
 
   function predictAndDraw(imageSource) {
     scaledShape = utils.prepareCanvas(preprocessCanvas, imageSource);
-    let id = renderer.uploadNewTexture(imageSource, scaledShape);
     return utils.predict(preprocessCanvas).then(result => {
 
       console.log(`Inference time: ${result.time} ms`);
@@ -292,7 +287,7 @@ function main(camera) {
   
       let start = performance.now();
       result.segMap.scaledShape = scaledShape;
-      renderer.drawOutputs(result.segMap);
+      renderer.drawOutputs(imageSource, result.segMap);
     });
   }
 
@@ -340,9 +335,6 @@ function main(camera) {
 
   // register models
   for (let model of availableModels) {
-    if (!_fileExists(model.modelFile))
-      return;
-
     let dropdownBtn = $('<button class="dropdown-item d-flex"/>')
       .append(
         $('<div class="model-link"/>')
@@ -427,7 +419,7 @@ function main(camera) {
       changeBackend('WASM');
     });
   } else {
-    let stats = new Stats();
+    stats = new Stats();
     stats.dom.style.cssText = 'position:fixed;top:60px;left:10px;cursor:pointer;opacity:0.9;z-index:10000';
     stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
     document.body.appendChild(stats.dom);
@@ -435,6 +427,8 @@ function main(camera) {
     navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
+        height: 513,
+        width: 513,
         facingMode: 'environment',
       }
     }).then((stream) => {
@@ -454,15 +448,16 @@ function main(camera) {
     }).catch((error) => {
       console.log('getUserMedia error: ' + error.name, error);
     });
+  }
 
-    function startPredict() {
-      if (streaming) {
-        stats.begin();
-        predictAndDraw(videoElement).then(_ => {
-          stats.end();
-          setTimeout(startPredict, 0);
-        });
-      }
+
+  function startPredict() {
+    if (streaming) {
+      stats.begin();
+      predictAndDraw(videoElement).then(_ => {
+        stats.end();
+        setTimeout(startPredict, 0);
+      });
     }
   }
 }

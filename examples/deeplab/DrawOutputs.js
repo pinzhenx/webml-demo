@@ -100,8 +100,9 @@ class Renderer {
       void main()
       {
         float bg_alpha = texture(u_mask, v_texcoord * vec2(0.99, 0.99)).a;
-        fg_color = vec4(texture(u_image, v_texcoord).xyz, 1.0 - bg_alpha);
-        bg_color = vec4(texture(u_image, v_texcoord).xyz, bg_alpha);
+        float fg_alpha = 1.0 - bg_alpha;
+        fg_color = vec4(texture(u_image, v_texcoord).xyz * fg_alpha, fg_alpha);
+        bg_color = vec4(texture(u_image, v_texcoord).xyz * bg_alpha, bg_alpha);
       }`
     );
     
@@ -186,19 +187,19 @@ class Renderer {
       {             
         vec2 tex_offset = 1.0 / vec2(textureSize(bg, 0)); // gets size of single texel
         vec4 bg_color = texture(bg, v_texcoord);
-        vec3 result = bg_color.rgb * kernel[0];
+        vec4 result = bg_color * kernel[0];
         if (first_pass) {
           for (int i = 1; i < 5; ++i) {
-            result += texture(bg, v_texcoord + vec2(tex_offset.x * float(i), 0.0)).rgb * kernel[i];
-            result += texture(bg, v_texcoord - vec2(tex_offset.x * float(i), 0.0)).rgb * kernel[i];
+            result += texture(bg, v_texcoord + vec2(tex_offset.x * float(i), 0.0)) * kernel[i];
+            result += texture(bg, v_texcoord - vec2(tex_offset.x * float(i), 0.0)) * kernel[i];
           }
         } else {
           for (int i = 1; i < 5; ++i) {
-            result += texture(bg, v_texcoord + vec2(0.0, tex_offset.y * float(i))).rgb * kernel[i];
-            result += texture(bg, v_texcoord - vec2(0.0, tex_offset.y * float(i))).rgb * kernel[i];
+            result += texture(bg, v_texcoord + vec2(0.0, tex_offset.y * float(i))) * kernel[i];
+            result += texture(bg, v_texcoord - vec2(0.0, tex_offset.y * float(i))) * kernel[i];
           }
         }
-        out_color = vec4(result, bg_color.a);
+        out_color = result;
       }`);
 
     // this.blurShader = new Shader(this._gl,
@@ -286,7 +287,7 @@ class Renderer {
       
       void main() {
         float bg_alpha = texture(bg, v_texcoord).a;
-        out_color = vec4(fill_color.xyz, bg_alpha);
+        out_color = vec4(fill_color.xyz * bg_alpha, bg_alpha);
       }`);
 
 
@@ -312,8 +313,6 @@ class Renderer {
       0
     );
     // this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
-
-
 
 
 

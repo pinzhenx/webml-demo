@@ -11,6 +11,7 @@ class Renderer {
     this._zoom = 1;
     this._bgcolor = [57, 135, 189]; // rgb
     this._blurRadius = 1;
+    this._scaledShape = [224, 224];
     this._effect = 'fill';
   }
 
@@ -20,6 +21,9 @@ class Renderer {
 
   set zoom(val) {
     this._zoom = val;
+
+    // all FRAMEBUFFERs should be re-setup when zooming
+    this.setup();
     this.drawOutputs();
   }
 
@@ -101,6 +105,7 @@ class Renderer {
       {
         float bg_alpha = texture(u_mask, v_texcoord * vec2(0.99, 0.99)).a;
         float fg_alpha = 1.0 - bg_alpha;
+
         fg_color = vec4(texture(u_image, v_texcoord).xyz * fg_alpha, fg_alpha);
         bg_color = vec4(texture(u_image, v_texcoord).xyz * bg_alpha, bg_alpha);
       }`
@@ -112,8 +117,8 @@ class Renderer {
       this._gl.TEXTURE_2D,
       0,
       this._gl.RGBA,
-      224,
-      224,
+      this._scaledShape[0] * this._zoom,
+      this._scaledShape[1] * this._zoom,
       0,
       this._gl.RGBA,
       this._gl.UNSIGNED_BYTE,
@@ -132,8 +137,8 @@ class Renderer {
       this._gl.TEXTURE_2D,
       0,
       this._gl.RGBA,
-      224,
-      224,
+      this._scaledShape[0] * this._zoom,
+      this._scaledShape[1] * this._zoom,
       0,
       this._gl.RGBA,
       this._gl.UNSIGNED_BYTE,
@@ -221,28 +226,31 @@ class Renderer {
 
     //   // https://software.intel.com/en-us/blogs/2014/07/15/an-investigation-of-fast-real-time-gpu-based-image-blur-algorithms
     //   // Kernel width 7 x 7
-    //   uniform float gWeights[2];
-    //   uniform float gOffsets[2];
+    //   uniform float gWeights[4];
+    //   uniform float gOffsets[4];
 
     //   void main()
     //   {
     //     vec2 tex_offset = 1.0 / vec2(textureSize(bg, 0)); // gets size of single texel
-    //     vec3 result = vec3(0, 0, 0);
+    //     vec4 bg_color = texture(bg, v_texcoord);
+    //     vec4 result = vec4(0.0, 0.0, 0.0, 0.0);
     //     if (first_pass) {
-    //       for (int i = 0; i < 2; i++) {
-    //         vec3 col = texture(bg, v_texcoord + vec2(tex_offset.x * float(i), 0.0)).xyz +
-    //                    texture(bg, v_texcoord - vec2(tex_offset.x * float(i), 0.0)).xyz;
+    //       for (int i = 0; i < 4; i++) {
+    //         vec2 offset = gOffsets[i] * vec2(tex_offset.x * float(i), 0.0);  
+    //         vec4 col = texture(bg, v_texcoord + offset) +
+    //                    texture(bg, v_texcoord - offset);
     //         result += gWeights[i] * col;
     //       }
     //     } else {
-    //       for (int i = 0; i < 2; i++) {
-    //         vec3 col = texture(bg, v_texcoord + vec2(0.0, tex_offset.y * float(i))).xyz +
-    //                    texture(bg, v_texcoord - vec2(0.0, tex_offset.y * float(i))).xyz;
+    //       for (int i = 0; i < 4; i++) {
+    //         vec2 offset = gOffsets[i] * vec2(0.0, tex_offset.y * float(i));
+    //         vec4 col = texture(bg, v_texcoord + offset) +
+    //                    texture(bg, v_texcoord - offset);
     //         result += gWeights[i] * col;
     //       }
     //     }
 
-    //     out_color = vec4(result, bg_color.a);
+    //     out_color = vec4(result.xyz * bg_color.a, bg_color.a);
     //   }`);
 
     this.blurFirstPassResultFbo = this._createAndBindFrameBuffer();
@@ -251,8 +259,8 @@ class Renderer {
       this._gl.TEXTURE_2D,
       0,
       this._gl.RGBA,
-      224,
-      224,
+      this._scaledShape[0] * this._zoom,
+      this._scaledShape[1] * this._zoom,
       0,
       this._gl.RGBA,
       this._gl.UNSIGNED_BYTE,
@@ -298,8 +306,8 @@ class Renderer {
       this._gl.TEXTURE_2D,
       0,
       this._gl.RGBA,
-      224,
-      224,
+      this._scaledShape[0] * this._zoom,
+      this._scaledShape[1] * this._zoom,
       0,
       this._gl.RGBA,
       this._gl.UNSIGNED_BYTE,
@@ -337,6 +345,7 @@ class Renderer {
       void main() {
         vec4 fg_color = texture(fg, v_texcoord);
         vec4 bg_color = texture(bg, v_texcoord);
+        // out_color = bg_color;
         out_color = mix(fg_color, bg_color, bg_color.a);
       }`);
 
@@ -385,7 +394,10 @@ class Renderer {
       let outputWidth = this._segMap.outputShape[0];
       let outputHeight = this._segMap.outputShape[1];
       let isScaled = outputWidth === scaledWidth || outputHeight === scaledHeight;
-  
+      
+      this._scaledShape = this._segMap.scaledShape;
+
+
       this._gl.canvas.width = scaledWidth * this._zoom;
       this._gl.canvas.height = scaledHeight * this._zoom;
       this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
@@ -434,6 +446,18 @@ class Renderer {
       let kernel = [0.2270270270, 0.1945945946, 0.1216216216, 0.0540540541, 0.0162162162];
       this.blurShader.use();
       this.blurShader.setUniform1fv('kernel', kernel);
+      // this.blurShader.setUniform1fv('gWeights', [
+      //   0.24961,
+      //   0.19246,
+      //   0.05148,
+      //   0.00645
+      // ]);
+      // this.blurShader.setUniform1fv('gOffsets', [
+      //   0.64434,
+      //   2.37885,
+      //   4.29111,
+      //   6.21661
+      // ]);
 
       this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this.blurFirstPassResultFbo);
       this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
@@ -460,6 +484,7 @@ class Renderer {
       this._gl.drawArrays(this._gl.TRIANGLES, 0, 6);
     }
 
+    const bgTex = this.effect === 'none' ? this.bgTex : this.styledBgTex;
 
     // feed into blend shader
     this.blendShader.use();
@@ -468,7 +493,7 @@ class Renderer {
     this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
     this._gl.bindTexture(this._gl.TEXTURE_2D, this.fgTex);
     this._gl.activeTexture(this._gl.TEXTURE1);
-    this._gl.bindTexture(this._gl.TEXTURE_2D, this.styledBgTex);
+    this._gl.bindTexture(this._gl.TEXTURE_2D, bgTex);
     this._gl.drawArrays(this._gl.TRIANGLES, 0, 6);
 
     console.log(`Draw time: ${(performance.now() - start).toFixed(2)} ms`);

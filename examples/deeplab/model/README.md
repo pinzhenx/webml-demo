@@ -1,43 +1,25 @@
-Download [ssd_mobilenet](https://drive.google.com/file/d/1bKD4eK8Zh9x_R7wc9CxpLHk2hrYG5orU/view?usp=sharing) and unzip here.
+Prerequisites
+======
+Download the following models to this directory:
 
-The model and label files are:
+ - [DeepLab (with Atrous Conv)](https://drive.google.com/file/d/1La9pi75J6RwSkgYcme1d9FLL4LZ3_JnE/view?usp=sharing)
+ - [DeepLab](https://drive.google.com/file/d/15l8kxoM0JBXv3Nd-BpyAQ7oZpgJWkKd3/view?usp=sharing)
 
+
+This directory should contain following files
 ```txt
-coco_labels_list.txt
-ssd_mobilenet.tflite
+deeplab_mobilenetv2_513.tflite
+deeplab_mobilenetv2_513_dilated.tflite
 ```
 
-Check out [TensorFlow Lite Models](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md) for details.
+These two models are equivalent. The latter is used for platforms (Android) that do not natively support atrous convolution. They are converted from this [DeepLab checkpoint](http://download.tensorflow.org/models/deeplabv3_mnv2_pascal_trainval_2018_01_29.tar.gz). You can follow the steps below to convert your own model.
 
-This model is converted from [Tensorflow SSD MobileNet model](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_coco_2017_11_17.tar.gz). You can use the following commands to convert your own model.
+# Convert From `.pb` to `.tflite`
 
+
+1. Download Tensorflow source if you previously intalled it with package manager.
 ```sh
-python ${tensorflow_dir}/lib/python3.5/site-packages/tensorflow/python/tools/optimize_for_inference.py \
---input=${download_dir}/ssd_mobilenet_v1_coco_2017_11_17/frozen_inference_graph.pb \
---output=${out_dir}/frozen_inference_graph_stripped.pb --frozen_graph=True \
---input_names=Preprocessor/sub \
---output_names=\
-"BoxPredictor_0/BoxEncodingPredictor/BiasAdd,BoxPredictor_0/ClassPredictor/BiasAdd,\
-BoxPredictor_1/BoxEncodingPredictor/BiasAdd,BoxPredictor_1/ClassPredictor/BiasAdd,\
-BoxPredictor_2/BoxEncodingPredictor/BiasAdd,BoxPredictor_2/ClassPredictor/BiasAdd,\
-BoxPredictor_3/BoxEncodingPredictor/BiasAdd,BoxPredictor_3/ClassPredictor/BiasAdd,\
-BoxPredictor_4/BoxEncodingPredictor/BiasAdd,BoxPredictor_4/ClassPredictor/BiasAdd,\
-BoxPredictor_5/BoxEncodingPredictor/BiasAdd,BoxPredictor_5/ClassPredictor/BiasAdd" \
---alsologtostderr
+git clone https://github.com/tensorflow/tensorflow.git
+cd tensorflow
 
-toco \
---input_file=${out_dir}/frozen_inference_graph_stripped.pb \
---output_file=${out_dir}/ssd_mobilenet.tflite \
---input_format=TENSORFLOW_GRAPHDEF --output_format=TFLITE \
---input_shapes=1,300,300,3 --input_arrays=Preprocessor/sub \
---output_arrays=\
-"BoxPredictor_0/BoxEncodingPredictor/BiasAdd,BoxPredictor_0/ClassPredictor/BiasAdd,\
-BoxPredictor_1/BoxEncodingPredictor/BiasAdd,BoxPredictor_1/ClassPredictor/BiasAdd,\
-BoxPredictor_2/BoxEncodingPredictor/BiasAdd,BoxPredictor_2/ClassPredictor/BiasAdd,\
-BoxPredictor_3/BoxEncodingPredictor/BiasAdd,BoxPredictor_3/ClassPredictor/BiasAdd,\
-BoxPredictor_4/BoxEncodingPredictor/BiasAdd,BoxPredictor_4/ClassPredictor/BiasAdd,\
-BoxPredictor_5/BoxEncodingPredictor/BiasAdd,BoxPredictor_5/ClassPredictor/BiasAdd" \
---inference_type=FLOAT --logtostderr
 ```
-
-Current WebML API doesn't support "Squeeze" operation. "Squeeze", "Reshape" and "Concatenation" operations are removed from graph because they are reduntant for inference. Use 6 box predictors and 6 class predictors from 6 feature maps for inference. [See tensorflow ssd_mobilenet_v1_feature_extractor for details.](https://github.com/tensorflow/models/blob/master/research/object_detection/models/ssd_mobilenet_v1_feature_extractor.py)

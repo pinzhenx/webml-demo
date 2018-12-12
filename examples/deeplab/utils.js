@@ -51,7 +51,7 @@ class Utils {
     let result = await this.model.compute(this.inputTensor, this.outputTensor);
     let elapsed = performance.now() - start;
     return {
-      time: elapsed.toFixed(2),
+      time: elapsed,
       segMap: {
         data: this.outputTensor,
         outputShape: this.outputSize,

@@ -66,6 +66,11 @@ function main(camera) {
   let streaming = false;
   let stats;
 
+  const counterN = 20;
+  let counter = 0;
+  let inferTimeAcc = 0;
+  let drawTimeAcc = 0;
+
 
   let renderer = new Renderer(outputCanvas);
   renderer.setup();
@@ -280,14 +285,24 @@ function main(camera) {
 
   function predictAndDraw(imageSource) {
     scaledShape = utils.prepareCanvas(preprocessCanvas, imageSource);
+    renderer.uploadNewTexture(imageSource, scaledShape);
+
     return utils.predict(preprocessCanvas).then(result => {
 
-      console.log(`Inference time: ${result.time} ms`);
-      inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${result.time} </em>ms`;
-  
-      let start = performance.now();
-      result.segMap.scaledShape = scaledShape;
-      renderer.drawOutputs(imageSource, result.segMap);
+      let inferTime = result.time;
+      console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
+      inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
+
+      let drawTime = renderer.drawOutputs(result.segMap);
+
+      inferTimeAcc += inferTime;
+      drawTimeAcc += drawTime;
+      if (++counter === counterN) {
+        console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
+        console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
+        counter = inferTimeAcc = drawTimeAcc = 0;
+      }
+      
     });
   }
 

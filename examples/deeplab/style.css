@@ -96,6 +96,7 @@ video {
   font-size: 9px;
 }
 .controls .label {
+  width: 100%;
   margin: 20px 0 8px 0;
 }
 .controls .btn-group {

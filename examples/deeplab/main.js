@@ -324,6 +324,7 @@ function main(camera) {
           counter = inferTimeAcc = drawTimeAcc = 0;
         }
       });
+      renderer.highlightHoverLabel(hoverPos);
     });
   }
 

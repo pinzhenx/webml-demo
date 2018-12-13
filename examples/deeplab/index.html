@@ -50,11 +50,25 @@
           <div class="image-wrapper">
             <div class="overlay">↓</div>
             <canvas id="output"></canvas>
-            <img id="image" crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="./img/riding.jpg">
+            <img id="image" crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="./img/maisel.jpg">
           </div>
         </div>
 
-        <div class="col-lg-2 offset-lg-0 col-md-4 offset-md-4 controls" data-select="blur">
+        <div class="order-lg-2 col-md-12 col-lg-8 offset-lg-2" align="center">
+          <div class="row top-margin">
+            <div class="col" align="center">
+              <label id="button" class="btn btn-primary disabled">
+                Pick Image <input type="file" id="input" accept="image/*" hidden disabled>
+              </label>
+            </div>
+          </div>
+          <div class="row">
+            <div id="inferenceTime" class="col" align="center">
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-2 offset-lg-0 col-sm-6 offset-sm-3 col-8 offset-2 controls" data-select="blur">
 
           <div class="row">
             <div class="label">
@@ -103,20 +117,6 @@
           </div>
 
           <div class="row labels-wrapper">
-          </div>
-        </div>
-
-        <div class="col-md-12 col-lg-8 offset-lg-2" align="center">
-          <div class="row top-margin">
-            <div class="col" align="center">
-              <label id="button" class="btn btn-primary disabled">
-                Pick Image <input type="file" id="input" accept="image/*" hidden disabled>
-              </label>
-            </div>
-          </div>
-          <div class="row">
-            <div id="inferenceTime" class="col" align="center">
-            </div>
           </div>
         </div>
       </div>

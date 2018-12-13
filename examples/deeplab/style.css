@@ -118,6 +118,9 @@ video {
 .effects-select label:nth-child(2) {
   border-radius: 3px 0 0 3px !important;
 }
+.color-picker-wrapper {
+  justify-content: center;
+}
 .blur-wrapper,
 .color-picker-wrapper,
 .labels-wrapper,

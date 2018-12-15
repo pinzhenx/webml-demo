@@ -58,6 +58,7 @@ function main(camera) {
   const webml = document.getElementById('webml');
   const zoomSlider = document.getElementById('zoomSlider');
   const blurSlider = document.getElementById('blurSlider');
+  const refineEdgeSlider = document.getElementById('refineEdgeSlider');
   const colorMapAlphaSlider = document.getElementById('colorMapAlphaSlider');
   const outputCanvas = document.getElementById('output');
   const preprocessCanvas = document.createElement('canvas');
@@ -119,10 +120,20 @@ function main(camera) {
   blurSlider.value = renderer.blurRadius;
   $('.blur-radius-value').html(renderer.blurRadius + 'px');
   blurSlider.oninput = () => {
-    let blurRadius = blurSlider.value;
+    let blurRadius = parseInt(blurSlider.value);
     $('.blur-radius-value').html(blurRadius + 'px');
     renderer.blurRadius = blurRadius;
   };
+
+  refineEdgeSlider.value = renderer.refineEdgeRadius;
+  $('.refine-edge-value').html(renderer.refineEdgeRadius + 'px');
+  refineEdgeSlider.oninput = () => {
+    let refineEdgeRadius = parseInt(refineEdgeSlider.value);
+    $('.refine-edge-value').html(refineEdgeRadius + 'px');
+    renderer.refineEdgeRadius = refineEdgeRadius;
+  };
+
+  
 
   $('.effects-select .btn input').filter(function() {
     return this.value === renderer.effect;

@@ -50,7 +50,7 @@
           <div class="image-wrapper">
             <div class="overlay">↓</div>
             <canvas id="output"></canvas>
-            <img id="image" crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="./img/maisel.jpg">
+            <img id="image" crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="./img/woman.jpg">
           </div>
         </div>
 
@@ -95,6 +95,13 @@
             <div class="slidecontainer"><input type="range" min="50" max="300" value="100" class="slider" id="zoomSlider"></div>
           </div>
 
+          <div class="row refine-edge-wrapper">
+            <div class="label">
+              REFINE EDGE: <span class="refine-edge-value"></span>
+            </div>  
+            <div class="slidecontainer"><input type="range" min="0" max="60" value="100" class="slider" id="refineEdgeSlider"></div>
+          </div>
+
           <div class="row blur-wrapper">
             <div class="label">
               BLUR RADIUS: <span class="blur-radius-value"></span>
@@ -102,7 +109,7 @@
             <div class="slidecontainer"><input type="range" min="0" max="50" value="0" class="slider" id="blurSlider"></div>
           </div>
 
-          <div class="row color-picker-wrapper">
+          <div class="row color-picker-wrapper justify-content-center">
             <div class="label">
               BACKGROUND: <span class="bg-value"></span>
             </div> 
@@ -132,6 +139,9 @@
     <script src="../util/tflite/schema/schema_generated.js"></script>
     <script src="../util/tflite/TfLiteModelUtils.js"></script>
     <script src="../util/tflite/TFliteModelImporter.js"></script>
+    <script src="WebGLUtils.js"></script>
+    <script src="Shader.js"></script>
+    <script src="GuidedFilter.js"></script>
     <script src="DrawOutputs.js"></script>
     <script src="utils.js"></script>
     <script src="main.js"></script>

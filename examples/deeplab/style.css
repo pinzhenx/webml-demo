@@ -65,7 +65,7 @@ video {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 4px;
+  height: 3px;
   border-radius: 2px;
   background: #d3d3d3;
   outline: none;
@@ -81,15 +81,17 @@ video {
   appearance: none;
   width: 20px;
   height: 20px;
+  border: 1px solid #777;
   border-radius: 10px;
-  background: #777;
+  background: #fff;
   cursor: pointer;
 }
-
 .slider::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  background: #4CAF50;
+  border: 1px solid #777;
+  border-radius: 10px;
+  background: #fff;
   cursor: pointer;
 }
 .controls {
@@ -118,19 +120,19 @@ video {
 .effects-select label:nth-child(2) {
   border-radius: 3px 0 0 3px !important;
 }
-.color-picker-wrapper {
-  justify-content: center;
-}
 .blur-wrapper,
 .color-picker-wrapper,
 .labels-wrapper,
-.color-map-alpha-wrapper {
+.color-map-alpha-wrapper,
+.refine-edge-wrapper {
   display: none;
 }
-.controls[data-select="blur"] .blur-wrapper {
+.controls[data-select="blur"] .blur-wrapper,
+.controls[data-select="blur"] .refine-edge-wrapper {
   display: flex;
 }
-.controls[data-select="fill"] .color-picker-wrapper {
+.controls[data-select="fill"] .color-picker-wrapper,
+.controls[data-select="fill"] .refine-edge-wrapper {
   display: flex;
 }
 .controls[data-select="label"] .labels-wrapper,

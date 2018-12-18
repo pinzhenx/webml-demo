@@ -44802,7 +44802,149 @@ var OperationCode = exports.OperationCode = {
    * Outputs:
    * * 0: The output tensor of same shape as input0.
    */
-  TANH: 28
+  TANH: 28,
+
+  /** Performs a atrous 2-D convolution operation.
+   *
+   * The ATROUS_CONV_2D op sweeps a 2-D filter that can mix channels together over a batch of
+   * images, applying the filter to each window of each image of the appropriate size.
+   *
+   * If the dilation rate parameters are greater than one, it performs convolution with holes,
+   * sampling the input values every rate pixels in the height and width dimensions.
+   *
+   * The output dimensions are functions of the filter dimensions, stride, and padding.
+   *
+   * The values in the output tensor are computed as:
+   *
+   *     output[batch, height, width, out_channel] =
+   *        sum_{dheight, dwidth, in_channel} (
+   *          filters[dheight, dwidth, in_channel, out_channel] *
+   *          value[batch, height + rate*dheight, width + rate*dwidth, in_channel]
+   *        )
+   *
+   * Supported tensor types:
+   * * {@link TENSOR_FLOAT32}
+   * * {@link TENSOR_QUANT8_ASYMM}
+   *
+   * Supported tensor rank: 4, with "NHWC" data layout.
+   *
+   * Both explicit padding and implicit padding are supported.
+   *
+   * Inputs (explicit padding):
+   * * 0: A 4-D tensor, of shape [batches, height, width, depth_in], specifying the input.
+   * * 1: A 4-D tensor, of shape [depth_out, filter_height, filter_width, depth_in],
+   *      specifying the filter.
+   * * 2: A 1-D tensor, of shape [depth_out], specifying the bias.
+   *      For input tensor of {@link TENSOR_FLOAT32} type, the bias should
+   *      also be of {@link TENSOR_FLOAT32}.
+   *      For input tensor of {@link TENSOR_QUANT8_ASYMM} type, the bias
+   *      should be of {@link TENSOR_INT32}, with zeroPoint of 0 and
+   *      bias_scale == input_scale * filter_scale.
+   * * 3: An INT32 value, specifying the padding on the left, in the ‘width’ dimension.
+   * * 4: An INT32 value, specifying the padding on the right,in the ‘width’ dimension.
+   * * 5: An INT32 value, specifying the padding on the top, in the ‘height’ dimension.
+   * * 6: An INT32 value, specifying the padding on the bottom, in the ‘height’ dimension.
+   * * 7: An INT32 value, specifying the dilation rate in the ‘width’ dimension.
+   * * 8: An INT32 value, specifying the dilation rate in the ‘height’ dimension.
+   * * 9: An INT32 value, and has to be one of the {@link FuseCode} values.
+   *      Specifies the activation to invoke on the result of each addition.
+   *
+   * Inputs (implicit padding):
+   * * 0: A 4-D tensor, of shape [batches, height, width, depth_in], specifying the input.
+   * * 1: A 4-D tensor, of shape [depth_out, filter_height, filter_width, depth_in],
+   *      specifying the filter.
+   * * 2: A 1-D tensor, of shape [depth_out], specifying the bias.
+   *      For input tensor of {@link TENSOR_FLOAT32} type, the bias should
+   *      also be of {@link TENSOR_FLOAT32}.
+   *      For input tensor of {@link TENSOR_QUANT8_ASYMM} type, the bias
+   *      should be of {@link TENSOR_INT32}, with zeroPoint of 0 and
+   *      bias_scale == input_scale * filter_scale.
+   * * 3: An INT32 value, specifying the implicit padding scheme, has to be one of the
+   *      {@link PaddingCode} values.
+   * * 4: An INT32 value, specifying the dilation rate in the ‘width’ dimension.
+   * * 5: An INT32 value, specifying the dilation rate in the ‘height’ dimension.
+   * * 6: An INT32 value, and has to be one of the {@link FuseCode} values.
+   *      Specifies the activation to invoke on the result of each addition.
+   *
+   * Outputs:
+   * * 0: The output 4-D tensor, of shape [batches, out_height, out_width, depth_out].
+   *      For output tensor of {@link TENSOR_QUANT8_ASYMM} type, the following
+   *      condition must be satisfied: output_scale > input_scale * filter_scale.
+   */
+  ATROUS_CONV_2D: 10003,
+
+  /** Performs a atrous depthwise 2-D convolution operation.
+   *
+   * Given an input tensor of shape [batches, height, width, depth_in] and a filter
+   * tensor of shape [1, filter_height, filter_width, depth_out] containing
+   * depth_out convolutional filters of depth 1, DEPTHWISE_CONV applies a different
+   * filter to each input channel (expanding from 1 channel to channel_multiplier channels
+   * for each), then concatenates the results together.
+   *
+   * If the dilation rate parameters are greater than one, it performs convolution with holes,
+   * sampling the input values every rate pixels in the height and width dimensions.
+   *
+   * The output has depth_out = depth_in * depth_multiplier channels.
+   * The output dimensions are functions of the filter dimensions, dilation rate, and padding.
+   *
+   * The values in the output tensor are computed as:
+   *
+   *     output[b, i, j, k * channel_multiplier + q] = sum_{di, dj}
+   *         filter[di, dj, k, q] * input[b, i + rate[0] * di,
+   *                                         j + rate[1] * dj, k]
+   *
+   * Supported tensor types:
+   * * {@link TENSOR_FLOAT32}
+   * * {@link TENSOR_QUANT8_ASYMM}
+   *
+   * Supported tensor rank: 4, with "NHWC" data layout.
+   *
+   * Both explicit padding and implicit padding are supported.
+   *
+   * Inputs (explicit padding):
+   * * 0: A 4-D tensor, of shape [batches, height, width, depth_in], specifying the input.
+   * * 1: A 4-D tensor, of shape [1, filter_height, filter_width, depth_out],
+   *      specifying the filter.
+   * * 2: A 1-D tensor, of shape [depth_out], specifying the bias.
+   *      For input tensor of {@link TENSOR_FLOAT32} type, the bias should
+   *      also be of {@link TENSOR_FLOAT32}.
+   *      For input tensor of {@link TENSOR_QUANT8_ASYMM} type, the bias
+   *      should be of {@link TENSOR_INT32}, with zeroPoint of 0 and
+   *      bias_scale == input_scale * filter_scale.
+   * * 3: An INT32 value, specifying the padding on the left, in the ‘width’ dimension.
+   * * 4: An INT32 value, specifying the padding on the right,in the ‘width’ dimension.
+   * * 5: An INT32 value, specifying the padding on the top, in the ‘height’ dimension.
+   * * 6: An INT32 value, specifying the padding on the bottom, in the ‘height’ dimension.
+   * * 7: An INT32 value, specifying the dilation rate in the ‘width’ dimension.
+   * * 8: An INT32 value, specifying the dilation rate in the ‘height’ dimension.
+   * * 9: An INT32 value, specifying the depthwise multiplier.
+   * * 10: An INT32 value, and has to be one of the {@link FuseCode} values.
+   *       Specifies the activation to invoke on the result of each addition.
+   *
+   * Inputs (implicit padding):
+   * * 0: A 4-D tensor, of shape [batches, height, width, depth_in], specifying the input.
+   * * 1: A 4-D tensor, of shape [1, filter_height, filter_width, depth_out],
+   *      specifying the filter.
+   * * 2: A 1-D tensor, of shape [depth_out], specifying the bias.
+   *      For input tensor of {@link TENSOR_FLOAT32} type, the bias should
+   *      also be of {@link TENSOR_FLOAT32}.
+   *      For input tensor of {@link TENSOR_QUANT8_ASYMM} type, the bias
+   *      should be of {@link TENSOR_INT32}, with zeroPoint of 0 and
+   *      bias_scale == input_scale * filter_scale.
+   * * 3: An INT32 value, specifying the implicit padding scheme, has to be one of the
+   *      {@link PaddingCode} values.
+   * * 4: An INT32 value, specifying the dilation rate in the ‘width’ dimension.
+   * * 5: An INT32 value, specifying the dilation rate in the ‘height’ dimension.
+   * * 6: An INT32 value, specifying the depthwise multiplier.
+   * * 7: An INT32 value, and has to be one of the {@link FuseCode} values.
+   *       Specifies the activation to invoke on the result of each addition.
+   *
+   * Outputs:
+   * * 0: The output 4-D tensor, of shape [batches, out_height, out_width, depth_out].
+   *      For output tensor of {@link TENSOR_QUANT8_ASYMM} type, the following
+   *      condition must be satisfied: output_scale > input_scale * filter_scale.
+   */
+  ATROUS_DEPTHWISE_CONV_2D: 10004
 };
 
 var ResultCode = exports.ResultCode = {
@@ -45516,6 +45658,8 @@ var NeuralNetworkContext = function () {
       this.SPACE_TO_DEPTH = _Enums.OperationCode.SPACE_TO_DEPTH;
       this.SVDF = _Enums.OperationCode.SVDF;
       this.TANH = _Enums.OperationCode.TANH;
+      this.ATROUS_CONV_2D = _Enums.OperationCode.ATROUS_CONV_2D;
+      this.ATROUS_DEPTHWISE_CONV_2D = _Enums.OperationCode.ATROUS_DEPTHWISE_CONV_2D;
     }
   }, {
     key: '_initFusedActivationFunctionTypes',
@@ -48155,6 +48299,10 @@ var WebGLModel = function () {
     this._operations = model._operations;
     this._operands = [];
     this._prepared = false;
+
+    if (tf.ENV.backend.floatPrecision() === 16) {
+      console.warn('The current floating point operation precision is only 16-bit');
+    }
   }
 
   /**
@@ -48221,8 +48369,6 @@ var WebGLModel = function () {
         var operand = _this2._operands[output.index];
         output.buffer.set(operand.dataSync());
       });
-
-      // console.log(tf.memory());
     }
   }, {
     key: '_executeOperation',
@@ -48241,6 +48387,7 @@ var WebGLModel = function () {
       }]]);
 
       var PaddingCodeMap = new Map([[_Enums.PaddingCode.SAME, 'same'], [_Enums.PaddingCode.VALID, 'valid']]);
+
       switch (op) {
         case _Enums.OperationCode.ADD:
           {
@@ -48293,7 +48440,7 @@ var WebGLModel = function () {
         case _Enums.OperationCode.DEPTHWISE_CONV_2D:
           {
             var _inCount = inputs.length;
-            if (_inCount !== 8 && _inCount !== 10 && _inCount !== 11) {
+            if (_inCount !== 8 && _inCount !== 11) {
               throw new Error('Invalid parameters number of DEPTHWISE_CONV_2D');
             }
             var _i = 0;
@@ -48303,10 +48450,14 @@ var WebGLModel = function () {
             var _output3 = operands[outputs[0]];
             var _strideW = void 0,
                 _strideH = void 0;
-            var dilationW = void 0,
-                dilationH = void 0;
             var depthMultipler = void 0;
             var _activation3 = void 0;
+            var paddedInput = _input;
+            var inputInChannels = _input.shape[3];
+            var filterInChannels = _filter.shape[2];
+            if (inputInChannels < filterInChannels) {
+              paddedInput = _input.pad([[0, 0], [0, 0], [0, 0], [0, filterInChannels - inputInChannels]]);
+            }
             if (_inCount === 8) {
               var _paddingCode = operands[inputs[_i++]].value[0];
               var _padding = PaddingCodeMap.get(_paddingCode);
@@ -48314,17 +48465,7 @@ var WebGLModel = function () {
               _strideH = operands[inputs[_i++]].value[0];
               depthMultipler = operands[inputs[_i++]].value[0];
               _activation3 = FuseFunctionMap.get(operands[inputs[_i++]].value[0]);
-              _output3.assign(_activation3(_input.depthwiseConv2D(_filter, [_strideH, _strideW], _padding).add(_bias)));
-            } else if (_inCount === 10) {
-              var _paddingCode2 = operands[inputs[_i++]].value[0];
-              var _padding2 = PaddingCodeMap.get(_paddingCode2);
-              _strideW = operands[inputs[_i++]].value[0];
-              _strideH = operands[inputs[_i++]].value[0];
-              depthMultipler = operands[inputs[_i++]].value[0];
-              _activation3 = FuseFunctionMap.get(operands[inputs[_i++]].value[0]);
-              dilationW = operands[inputs[_i++]].value[0];
-              dilationH = operands[inputs[_i++]].value[0];
-              _output3.assign(_activation3(_input.depthwiseConv2D(_filter, [_strideH, _strideW], _padding2, 'channels_last', [dilationW, dilationH]).add(_bias)));
+              _output3.assign(_activation3(paddedInput.depthwiseConv2D(_filter, [_strideH, _strideW], _padding).add(_bias)));
             } else {
               var _paddingLeft = operands[inputs[_i++]].value[0];
               var _paddingRight = operands[inputs[_i++]].value[0];
@@ -48334,102 +48475,181 @@ var WebGLModel = function () {
               _strideH = operands[inputs[_i++]].value[0];
               depthMultipler = operands[inputs[_i++]].value[0];
               _activation3 = FuseFunctionMap.get(operands[inputs[_i++]].value[0]);
-              _output3.assign(_activation3(_input.pad([[0, 0], [_paddingTop, _paddingBottom], [_paddingLeft, _paddingRight], [0, 0]]).depthwiseConv2D(_filter, [_strideH, _strideW], 'valid').add(_bias)));
+              _output3.assign(_activation3(paddedInput.pad([[0, 0], [_paddingTop, _paddingBottom], [_paddingLeft, _paddingRight], [0, 0]]).depthwiseConv2D(_filter, [_strideH, _strideW], 'valid').add(_bias)));
             }
           }break;
-        case _Enums.OperationCode.AVERAGE_POOL_2D:
-        case _Enums.OperationCode.MAX_POOL_2D:
+        case _Enums.OperationCode.ATROUS_CONV_2D:
           {
             var _inCount2 = inputs.length;
             if (_inCount2 !== 7 && _inCount2 !== 10) {
-              throw new Error('Invalid parameters number of Pooling ' + op);
+              throw new Error('Invalid parameters number of ATROUS_CONV_2D');
             }
             var _i2 = 0;
             var _input2 = operands[inputs[_i2++]];
+            var _filter2 = operands[inputs[_i2++]];
+            var _bias2 = operands[inputs[_i2++]];
             var _output4 = operands[outputs[0]];
-            var _strideW2 = void 0,
-                _strideH2 = void 0;
-            var filterW = void 0,
-                filterH = void 0;
+            var strides = [1, 1];
+            var dilationW = void 0,
+                dilationH = void 0;
             var _activation4 = void 0;
             if (_inCount2 === 7) {
-              var _paddingCode3 = operands[inputs[_i2++]].value[0];
-              var _padding3 = PaddingCodeMap.get(_paddingCode3);
-              _strideW2 = operands[inputs[_i2++]].value[0];
-              _strideH2 = operands[inputs[_i2++]].value[0];
-              filterW = operands[inputs[_i2++]].value[0];
-              filterH = operands[inputs[_i2++]].value[0];
+              var _paddingCode2 = operands[inputs[_i2++]].value[0];
+              var _padding2 = PaddingCodeMap.get(_paddingCode2);
+              dilationW = operands[inputs[_i2++]].value[0];
+              dilationH = operands[inputs[_i2++]].value[0];
               _activation4 = FuseFunctionMap.get(operands[inputs[_i2++]].value[0]);
-              if (op === _Enums.OperationCode.AVERAGE_POOL_2D) {
-                _output4.assign(_activation4(_input2.avgPool([filterH, filterW], [_strideH2, _strideW2], _padding3)));
-              } else {
-                _output4.assign(_activation4(_input2.maxPool([filterH, filterW], [_strideH2, _strideW2], _padding3)));
-              }
+              _output4.assign(_activation4(_input2.conv2d(_filter2, strides, _padding2, 'NHWC', [dilationH, dilationW]).add(_bias2)));
             } else {
               var _paddingLeft2 = operands[inputs[_i2++]].value[0];
               var _paddingRight2 = operands[inputs[_i2++]].value[0];
               var _paddingTop2 = operands[inputs[_i2++]].value[0];
               var _paddingBottom2 = operands[inputs[_i2++]].value[0];
-              _strideW2 = operands[inputs[_i2++]].value[0];
-              _strideH2 = operands[inputs[_i2++]].value[0];
-              filterW = operands[inputs[_i2++]].value[0];
-              filterH = operands[inputs[_i2++]].value[0];
+              dilationW = operands[inputs[_i2++]].value[0];
+              dilationH = operands[inputs[_i2++]].value[0];
               _activation4 = FuseFunctionMap.get(operands[inputs[_i2++]].value[0]);
+              _output4.assign(_activation4(_input2.pad([[0, 0], [_paddingTop2, _paddingBottom2], [_paddingLeft2, _paddingRight2], [0, 0]]).conv2d(_filter2, strides, 'valid', 'NHWC', [dilationH, dilationW]).add(_bias2)));
+            }
+          }break;
+        case _Enums.OperationCode.ATROUS_DEPTHWISE_CONV_2D:
+          {
+            var _inCount3 = inputs.length;
+            if (_inCount3 !== 8 && _inCount3 !== 11) {
+              throw new Error('Invalid parameters number of ATROUS_DEPTHWISE_CONV_2D');
+            }
+            var _i3 = 0;
+            var _input3 = operands[inputs[_i3++]];
+            var _filter3 = operands[inputs[_i3++]];
+            var _bias3 = operands[inputs[_i3++]];
+            var _output5 = operands[outputs[0]];
+            var _strides = [1, 1];
+            var _dilationW = void 0,
+                _dilationH = void 0;
+            var _depthMultipler = void 0;
+            var _activation5 = void 0;
+            var _paddedInput = _input3;
+            var _inputInChannels = _input3.shape[3];
+            var _filterInChannels = _filter3.shape[2];
+            if (_inputInChannels < _filterInChannels) {
+              _paddedInput = _input3.pad([[0, 0], [0, 0], [0, 0], [0, _filterInChannels - _inputInChannels]]);
+            }
+            if (_inCount3 === 8) {
+              var _paddingCode3 = operands[inputs[_i3++]].value[0];
+              var _padding3 = PaddingCodeMap.get(_paddingCode3);
+              _dilationW = operands[inputs[_i3++]].value[0];
+              _dilationH = operands[inputs[_i3++]].value[0];
+              _depthMultipler = operands[inputs[_i3++]].value[0];
+              _activation5 = FuseFunctionMap.get(operands[inputs[_i3++]].value[0]);
+              _output5.assign(_activation5(_paddedInput.depthwiseConv2D(_filter3, _strides, _padding3, 'NHWC', [_dilationH, _dilationW]).add(_bias3)));
+            } else {
+              var _paddingLeft3 = operands[inputs[_i3++]].value[0];
+              var _paddingRight3 = operands[inputs[_i3++]].value[0];
+              var _paddingTop3 = operands[inputs[_i3++]].value[0];
+              var _paddingBottom3 = operands[inputs[_i3++]].value[0];
+              _dilationW = operands[inputs[_i3++]].value[0];
+              _dilationH = operands[inputs[_i3++]].value[0];
+              _depthMultipler = operands[inputs[_i3++]].value[0];
+              _activation5 = FuseFunctionMap.get(operands[inputs[_i3++]].value[0]);
+              _output5.assign(_activation5(_paddedInput.pad([[0, 0], [_paddingTop3, _paddingBottom3], [_paddingLeft3, _paddingRight3], [0, 0]]).depthwiseConv2D(_filter3, _strides, 'valid', 'NHWC', [_dilationH, _dilationW]).add(_bias3)));
+            }
+          }break;
+        case _Enums.OperationCode.AVERAGE_POOL_2D:
+        case _Enums.OperationCode.MAX_POOL_2D:
+          {
+            var _inCount4 = inputs.length;
+            if (_inCount4 !== 7 && _inCount4 !== 10) {
+              throw new Error('Invalid parameters number of Pooling ' + op);
+            }
+            var _i4 = 0;
+            var _input4 = operands[inputs[_i4++]];
+            var _output6 = operands[outputs[0]];
+            var _strideW2 = void 0,
+                _strideH2 = void 0;
+            var filterW = void 0,
+                filterH = void 0;
+            var _activation6 = void 0;
+            if (_inCount4 === 7) {
+              var _paddingCode4 = operands[inputs[_i4++]].value[0];
+              var _padding4 = PaddingCodeMap.get(_paddingCode4);
+              _strideW2 = operands[inputs[_i4++]].value[0];
+              _strideH2 = operands[inputs[_i4++]].value[0];
+              filterW = operands[inputs[_i4++]].value[0];
+              filterH = operands[inputs[_i4++]].value[0];
+              _activation6 = FuseFunctionMap.get(operands[inputs[_i4++]].value[0]);
               if (op === _Enums.OperationCode.AVERAGE_POOL_2D) {
-                _output4.assign(_activation4(_input2.pad([[0, 0], [_paddingTop2, _paddingBottom2], [_paddingLeft2, _paddingRight2], [0, 0]]).avgPool([filterH, filterW], [_strideH2, _strideW2], 'valid')));
+                _output6.assign(_activation6(_input4.avgPool([filterH, filterW], [_strideH2, _strideW2], _padding4)));
               } else {
-                _output4.assign(_activation4(_input2.pad([[0, 0], [_paddingTop2, _paddingBottom2], [_paddingLeft2, _paddingRight2], [0, 0]]).maxPool([filterH, filterW], [_strideH2, _strideW2], 'valid')));
+                _output6.assign(_activation6(_input4.maxPool([filterH, filterW], [_strideH2, _strideW2], _padding4)));
+              }
+            } else {
+              var _paddingLeft4 = operands[inputs[_i4++]].value[0];
+              var _paddingRight4 = operands[inputs[_i4++]].value[0];
+              var _paddingTop4 = operands[inputs[_i4++]].value[0];
+              var _paddingBottom4 = operands[inputs[_i4++]].value[0];
+              _strideW2 = operands[inputs[_i4++]].value[0];
+              _strideH2 = operands[inputs[_i4++]].value[0];
+              filterW = operands[inputs[_i4++]].value[0];
+              filterH = operands[inputs[_i4++]].value[0];
+              _activation6 = FuseFunctionMap.get(operands[inputs[_i4++]].value[0]);
+              if (op === _Enums.OperationCode.AVERAGE_POOL_2D) {
+                _output6.assign(_activation6(_input4.pad([[0, 0], [_paddingTop4, _paddingBottom4], [_paddingLeft4, _paddingRight4], [0, 0]]).avgPool([filterH, filterW], [_strideH2, _strideW2], 'valid')));
+              } else {
+                _output6.assign(_activation6(_input4.pad([[0, 0], [_paddingTop4, _paddingBottom4], [_paddingLeft4, _paddingRight4], [0, 0]]).maxPool([filterH, filterW], [_strideH2, _strideW2], 'valid')));
               }
             }
           }break;
         case _Enums.OperationCode.SOFTMAX:
           {
-            var _input3 = operands[inputs[0]];
+            var _input5 = operands[inputs[0]];
             var beta = operands[inputs[1]].value[0];
-            var _output5 = operands[outputs[0]];
-            _output5.assign(_input3.mul(tf.scalar(beta)).softmax());
+            var _output7 = operands[outputs[0]];
+            if (beta === 1) {
+              _output7.assign(_input5.softmax());
+            } else {
+              _output7.assign(_input5.mul(tf.scalar(beta)).softmax());
+            }
           }break;
         case _Enums.OperationCode.RESHAPE:
           {
-            var _input4 = operands[inputs[0]];
+            var _input6 = operands[inputs[0]];
             var targetShape = operands[inputs[1]];
-            var _output6 = operands[outputs[0]];
-            _output6.assign(_input4.reshape(targetShape.dataSync()));
+            var _output8 = operands[outputs[0]];
+            if (targetShape.value === undefined) {
+              targetShape.value = targetShape.dataSync();
+            }
+            _output8.assign(_input6.reshape(targetShape.value));
           }break;
         case _Enums.OperationCode.CONCATENATION:
           {
-            if (outputs.length < 1 || inputs.length < 2) {
-              throw new Error('Invalid inputs or outputs');
-            }
             var numInputTensors = inputs.length - 1;
             var axis = operands[inputs[numInputTensors]].value[0];
-            var _output7 = operands[outputs[0]];
+            var _output9 = operands[outputs[0]];
             var inputTensors = [];
-            for (var _i3 = 0; _i3 < numInputTensors; ++_i3) {
-              inputTensors.push(operands[inputs[_i3]]);
+            for (var _i5 = 0; _i5 < numInputTensors; ++_i5) {
+              inputTensors.push(operands[inputs[_i5]]);
             }
-            _output7.assign(tf.concat(inputTensors, axis));
+            _output9.assign(tf.concat(inputTensors, axis));
           }break;
         case _Enums.OperationCode.RESIZE_BILINEAR:
           {
             if (outputs.length < 1 || inputs.length < 3) {
               throw new Error('Invalid inputs or outputs');
             }
-            var _input5 = operands[inputs[0]];
+            var _input7 = operands[inputs[0]];
             var newHeight = operands[inputs[1]].value[0];
             var newWidth = operands[inputs[2]].value[0];
-            var _output8 = operands[outputs[0]];
-            _output8.assign(_input5.resizeBilinear([newHeight, newWidth], false));
+            var _output10 = operands[outputs[0]];
+            _output10.assign(_input7.resizeBilinear([newHeight, newWidth], false));
           }break;
         case _Enums.OperationCode.FULLY_CONNECTED:
           {
-            var _input6 = operands[inputs[0]];
+            var _input8 = operands[inputs[0]];
             var weights = operands[inputs[1]];
-            var _bias2 = operands[inputs[2]];
-            var _activation5 = FuseFunctionMap.get(operands[inputs[3]].value[0]);
-            var _output9 = operands[outputs[0]];
-            var batchSize = _input6.shape[0];
-            _output9.assign(_activation5(tf.matMul(_input6.reshape([batchSize, -1]), weights.transpose()).add(_bias2)));
+            var _bias4 = operands[inputs[2]];
+            var _activation7 = FuseFunctionMap.get(operands[inputs[3]].value[0]);
+            var _output11 = operands[outputs[0]];
+            var batchSize = utils.product(_input8.shape) / weights.shape[1];
+            _output11.assign(_activation7(tf.matMul(_input8.reshape([batchSize, -1]), weights, false, true).add(_bias4)));
           }break;
         default:
           {
@@ -48466,26 +48686,28 @@ var WebGLModel = function () {
       this._operations.forEach(function (operation) {
         var op = operation.type;
         switch (op) {
+          case _Enums.OperationCode.ATROUS_CONV_2D:
           case _Enums.OperationCode.CONV_2D:
             {
               // NHWC -> HWCN
+              // https://js.tensorflow.org/api/0.13.3/#conv2d
               var inputs = operation.inputs;
               var filter = _this3._operands[inputs[1]];
               _this3._operands[inputs[1]] = filter.transpose([1, 2, 3, 0]);
               filter.dispose();
             }break;
+          case _Enums.OperationCode.ATROUS_DEPTHWISE_CONV_2D:
           case _Enums.OperationCode.DEPTHWISE_CONV_2D:
             {
               // [1, filterH, filterW, outChannels] -> [filterH, filterW, inChannels, depthMultipler]
+              // https://js.tensorflow.org/api/0.13.3/#depthwiseConv2d
               var _inputs = operation.inputs;
-              var input = _this3._operands[_inputs[0]];
-              var _filter2 = _this3._operands[_inputs[1]];
-              var filterH = _filter2.shape[1];
-              var filterW = _filter2.shape[2];
-              var inChannels = input.shape[3];
-              var depthMultipler = 1;
-              _this3._operands[_inputs[1]] = _filter2.reshape([filterH, filterW, inChannels, depthMultipler]);
-              _filter2.dispose();
+              var _filter4 = _this3._operands[_inputs[1]];
+              var filterH = _filter4.shape[1];
+              var filterW = _filter4.shape[2];
+              var depthMultipler = _this3._operands[_inputs[_inputs.length - 2]].value[0];
+              _this3._operands[_inputs[1]] = _filter4.reshape([filterH, filterW, -1, depthMultipler]);
+              _filter4.dispose();
             }break;
         }
       });

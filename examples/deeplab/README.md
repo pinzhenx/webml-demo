@@ -1,6 +1,6 @@
-WebML SSD MobileNet Sample
+WebML Segmentation Sample
 ======
-This sample loads SSD MobileNet model trained by COCO in TensorFlow Lite format, constructs and inferences it by WebML API.
+This sample loads DeepLab v3+ (trained on PASCAL VOC 2012) in TFLite format, constructs and inferences it by WebML API.
 
 Download Model
 -----------

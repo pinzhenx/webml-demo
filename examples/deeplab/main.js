@@ -60,6 +60,8 @@ function main(camera) {
   const blurSlider = document.getElementById('blurSlider');
   const refineEdgeSlider = document.getElementById('refineEdgeSlider');
   const colorMapAlphaSlider = document.getElementById('colorMapAlphaSlider');
+  const selectBackgroundButton = document.getElementById('chooseBackground');
+  const clearBackgroundButton = document.getElementById('clearBackground');
   const outputCanvas = document.getElementById('output');
   const preprocessCanvas = document.createElement('canvas');
   let clippedSize = [];
@@ -126,10 +128,18 @@ function main(camera) {
   };
 
   refineEdgeSlider.value = renderer.refineEdgeRadius;
-  $('.refine-edge-value').html(renderer.refineEdgeRadius + 'px');
+  if (refineEdgeSlider.value === '0') {
+    $('.refine-edge-value').html('DISABLED');
+  } else {
+    $('.refine-edge-value').html(refineEdgeSlider.value + 'px');
+  }
   refineEdgeSlider.oninput = () => {
     let refineEdgeRadius = parseInt(refineEdgeSlider.value);
-    $('.refine-edge-value').html(refineEdgeRadius + 'px');
+    if (refineEdgeRadius === 0) {
+      $('.refine-edge-value').html('DISABLED');
+    } else {
+      $('.refine-edge-value').html(refineEdgeRadius + 'px');
+    }
     renderer.refineEdgeRadius = refineEdgeRadius;
   };
 
@@ -210,6 +220,7 @@ function main(camera) {
     } else {
       selectPrefer.style.display = 'inline';
     }
+    // renderer.deleteAll();
     utils.deleteAll();
     backend.innerHTML = 'Setting...';
     setTimeout(() => {
@@ -245,6 +256,7 @@ function main(camera) {
       return;
     }
     streaming = false;
+    // renderer.deleteAll();
     utils.deleteAll();
     utils.changeModelParam(newModel);
     currentPrefer = "sustained";
@@ -272,6 +284,7 @@ function main(camera) {
       return;
     }
     streaming = false;
+    // renderer.deleteAll();
     utils.deleteAll();
     selectPrefer.innerHTML = 'Setting...';
     setTimeout(() => {
@@ -318,24 +331,29 @@ function main(camera) {
 
   function predictAndDraw(imageSource) {
     clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
-    renderer.uploadNewTexture(imageSource, clippedSize);
+    // console.debug('1 upload start');
+    renderer.uploadNewTexture(imageSource, clippedSize)
+      // .then(_ => console.debug('2 upload done'));
 
+    // console.debug('3 predict start');
     return utils.predict(preprocessCanvas).then(result => {
-
+      // console.debug('4 predict done, draw start');
       let inferTime = result.time;
       console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
       inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
 
-      renderer.drawOutputs(result.segMap).then((drawTime) => {
-        inferTimeAcc += inferTime;
-        drawTimeAcc += drawTime;
-        if (++counter === counterN) {
-          console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
-          console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
-          counter = inferTimeAcc = drawTimeAcc = 0;
-        }
-      });
+      renderer.drawOutputs(result.segMap)
+        // .then((drawTime) => {
+        //   inferTimeAcc += inferTime;
+        //   drawTimeAcc += drawTime;
+        //   if (++counter === counterN) {
+        //     console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
+        //     console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
+        //     counter = inferTimeAcc = drawTimeAcc = 0;
+        //   }
+        // });
       renderer.highlightHoverLabel(hoverPos);
+      // console.debug('5 draw done\n\n');
     });
   }
 
@@ -430,6 +448,23 @@ function main(camera) {
     }
   }
 
+  selectBackgroundButton.addEventListener('change', (e) => {
+    let files = e.target.files;
+    if (files.length > 0) {
+      let img = new Image();
+      img.onload = function () {
+        renderer.backgroundImageSource = img;
+      };
+      img.src = URL.createObjectURL(files[0]);
+    }
+  }, false);
+
+  clearBackgroundButton.addEventListener('click', (e) => {
+
+    renderer.backgroundImageSource = null;
+
+  }, false);
+
   // image or camera
   if (!camera) {
     inputElement.addEventListener('change', (e) => {
@@ -437,6 +472,7 @@ function main(camera) {
       if (files.length > 0) {
         imageElement.src = URL.createObjectURL(files[0]);
       }
+      $('.credit').remove();
     }, false);
     let imageWrapper = document.getElementsByClassName('image-wrapper')[0];
     imageWrapper.ondragover = (e) => {

@@ -6,7 +6,7 @@ class Renderer {
       throw new Error('Unable to initialize WebGL.');
     }
 
-    this._guidedFilter = new GuidedFilter(this._gl);
+    this.guidedFilter = new GuidedFilter(this._gl);
     this.utils = new WebGLUtils(this._gl);
 
     this.shaders = {};
@@ -14,17 +14,17 @@ class Renderer {
     this._segMap = null;
     this._predictions = null;
     this._clippedSize = [224, 224];
-    this._outputSize = [224, 224];
     this._imageSource = null;
 
-    this._effect = 'blur';
-    this._zoom = 3;
+    this._effect = 'label';
+    this._zoom = 2;
     this._bgColor = [57, 135, 189]; // rgb
     this._colorMapAlpha = 0.7;
     this._blurRadius = 30;
+    this._backgroundImageSource = null;
     let kernel1D = this._generateGaussianKernel1D(this._blurRadius * 2 + 1);
     this._halfKernel = kernel1D.slice(this._blurRadius); // take the second half
-    this._guidedFilterRadius = 16;
+    this._guidedFilterRadius = 0;
 
     this._correctionFactor = 0.99;
 
@@ -60,7 +60,7 @@ class Renderer {
   set zoom(val) {
     this._zoom = val;
 
-    // all FRAMEBUFFERs should be re-setup when zooming
+    // all FRAMEBUFFERs should be reconfigured when zooming
     this.setup().then(_ => this.drawOutputs(this._segMap));
   }
 
@@ -70,7 +70,8 @@ class Renderer {
 
   set bgColor(rgb) {
     this._bgColor = rgb;
-    this.drawOutputs();
+    this._setupFillShader();
+    this.drawOutputs(this._segMap);
   }
 
   get blurRadius() {
@@ -87,8 +88,8 @@ class Renderer {
     // take the second half
     this._halfKernel = kernel1D.slice(radius);
 
-    // re-setup shader with new kernel
-    this.setup().then(_ => this.drawOutputs());
+    // reconfigure shaders with new kernel
+    this.setup().then(_ => this.drawOutputs(this._segMap));
   }
 
   get colorMapAlpha() {
@@ -119,12 +120,23 @@ class Renderer {
   set refineEdgeRadius(radius) {
     this._guidedFilterRadius = radius;
 
-    this._guidedFilter.setup(
+    this.guidedFilter.setup(
       this._guidedFilterRadius,
-      0.000001,
+      1e-6,
       this._clippedSize[0] * this._zoom,
       this._clippedSize[1] * this._zoom
     );
+    this.setup().then(_ => this.drawOutputs(this._segMap));
+  }
+
+  get backgroundImageSource() {
+    return this._backgroundImageSource;
+  }
+
+  set backgroundImageSource(src) {
+    this._backgroundImageSource = src;
+
+    this._setupImageShader();
     this.drawOutputs(this._segMap);
   }
 
@@ -145,12 +157,19 @@ class Renderer {
     // II. Person segmentation
     //
     // +------+                     +----+
-    // |  im  |--.               .->| fg |-----------------------------.
-    // +------+  |  ===========  |  +----+  ==============             |  ==========  +-----+
-    //           |->| extract |--|          | blurShader |  +--------+ |->| blend  |->| out |
-    // +------+  |  | Shader  |  |  +----+  |     or     |  | styled | |  | Shader |  +-----+
-    // | pred |--'  ===========  '->| bg |->| fillShader |->|   Bg   |-'  ==========
-    // +------+                     +----+  ==============  +--------+    
+    // |  im  |--.               .->| fg |----------------------------.
+    // +------+  |  ===========  |  +----+                            |  =========  +-----+
+    //           |->| extract |--|                                    |->| blend |->| out |
+    // +------+  |  ===========  |  +----+  ========                  |  =========  +-----+
+    // | pred |--'               '->| bg |->| blur |->|\              |
+    // +------+                     +----+  ========  | |             |
+    //                                      ========  | |  +--------+ |
+    //                                      | fill |->| |->| styled |-'
+    //                                      ========  | |  |   Bg   |
+    //                         +---------+  ========  | |  +--------+                                  
+    //                         | bgImage |->| img  |->|/
+    //                         +---------+  ========
+    //
     //
     //           _____________________________________________
     //          | two-pass Gaussian blur                      |
@@ -162,37 +181,39 @@ class Renderer {
     //          |_____________________________________________|
     //
 
-    this._guidedFilter.setup(
+    this.guidedFilter.setup(
       this._guidedFilterRadius,
-      0.000001,
+      1e-6,
       this._clippedSize[0] * this._zoom,
       this._clippedSize[1] * this._zoom
     );
 
-    this._setupQuad();
+    this.utils.setup2dQuad();
 
-    if (this._effect === 'label') {
-      this._setupColorizeShader();
-    } else {
-      this._setupExtractShader();
-
-      if (this._effect === 'blur') {
+    switch (this._effect) {
+      case 'label': {
+        this._setupColorizeShader();
+      } break;
+      case 'blur': {
+        this._setupExtractShader();
         this._setupBlurShader();
-      } else if (this._effect === 'fill') {
+        this._setupBlendShader();
+      } break;
+      case 'image': {
+        this._setupExtractShader();
+        this._setupImageShader();
+        this._setupBlendShader();
+      } break;
+      case 'fill': {
+        this._setupExtractShader();
         this._setupFillShader();
+        this._setupBlendShader();
+      } break;
+      default: {
+        console.warn('Unknown effect');
       }
-
-      this._setupBlendShader();
     }
-  }
-
-  _setupQuad() {
-    const quad = new Float32Array([-1, -1, 1, -1, 1, 1, 1, 1, -1, 1, -1, -1]);
-    const vbo = this._gl.createBuffer();
-    this._gl.bindBuffer(this._gl.ARRAY_BUFFER, vbo);
-    this._gl.bufferData(this._gl.ARRAY_BUFFER, quad, this._gl.STATIC_DRAW);
-    this._gl.enableVertexAttribArray(0);
-    this._gl.vertexAttribPointer(0, 2, this._gl.FLOAT, false, 0, 0);
+    // this.utils.freeze();
   }
 
   _setupColorizeShader() {
@@ -237,7 +258,23 @@ class Renderer {
     this.shaders.colorize.set1i('u_palette', 2); // texture units 2
     this.shaders.colorize.set1i('u_length', this._colorPalette.length / 3);
 
-    this.utils._tex.palette = this.utils.createAndBindTexture(this._gl.NEAREST);
+    if (typeof this.utils.getTexture('image') === 'undefined') {
+      this.utils.createAndBindTexture({
+        name: 'image',
+        filter: this._gl.LINEAR,
+      });
+    }
+
+    this.utils.createAndBindTexture({
+      name: 'predictions',
+      filter: this._gl.NEAREST,
+    });
+
+    this.utils.createAndBindTexture({
+      name: 'palette',
+      filter: this._gl.NEAREST,
+    });
+
     this._gl.texImage2D(
       this._gl.TEXTURE_2D,
       0,
@@ -253,7 +290,9 @@ class Renderer {
 
   _setupExtractShader() {
 
-    const vs =
+    // When guided filter pre-processing is disabled, raw mask is used as input
+    // However, raw mask texture is slightly biased and horizontally flipped
+    const vsWithoutPreprocess =
       `#version 300 es
       in vec4 a_pos;
       out vec2 v_texcoord;
@@ -262,8 +301,21 @@ class Renderer {
       void main() {
         gl_Position = a_pos;
         v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
-        v_maskcord = (a_pos.xy * vec2(0.5, 0.5) + 0.5);// * ${this._correctionFactor};
+        v_maskcord = v_texcoord * ${this._correctionFactor};
       }`;
+
+    const vsWithPreprocess =
+    `#version 300 es
+    in vec4 a_pos;
+    out vec2 v_texcoord;
+    out vec2 v_maskcord;
+
+    void main() {
+      gl_Position = a_pos;
+      v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
+      v_maskcord = a_pos.xy * vec2(0.5, 0.5) + 0.5;
+    }`;
+  
 
     const fs =
       `#version 300 es
@@ -284,17 +336,34 @@ class Renderer {
         vec4 pixel = texture(u_image, v_texcoord);
         fg_color = vec4(pixel.xyz * fg_alpha, fg_alpha);
         bg_color = vec4(pixel.xyz * bg_alpha, bg_alpha);
-        // bg_color = pixel;
       }`;
 
-    this.shaders.extract = new Shader(this._gl, vs, fs);
+    if (this._guidedFilterRadius === 0) {
+      // guided filter is disabled
+      this.shaders.extract = new Shader(this._gl, vsWithoutPreprocess, fs);
+    } else {
+      this.shaders.extract = new Shader(this._gl, vsWithPreprocess, fs);
+    }
+
+    if (typeof this.utils.getTexture('image') === 'undefined') {
+      this.utils.createAndBindTexture({
+        name: 'image',
+        filter: this._gl.LINEAR,
+      });
+    }
+
+    this.utils.createAndBindTexture({
+      name: 'predictions',
+      filter: this._gl.NEAREST,
+    });
+
     this.utils.createTexInFrameBuffer('extract',
       [{
-        texName: 'fg',
+        name: 'fg',
         width: this._clippedSize[0] * this._zoom,
         height: this._clippedSize[1] * this._zoom,
       }, {
-        texName: 'bg',
+        name: 'bg',
         width: this._clippedSize[0] * this._zoom,
         height: this._clippedSize[1] * this._zoom,
       }]
@@ -324,7 +393,6 @@ class Renderer {
 
       uniform sampler2D bg;
       uniform bool first_pass;
-      uniform int raidius;
       uniform float kernel[${this._blurRadius + 1}];
 
       // https://learnopengl.com/code_viewer_gh.php?code=src/5.advanced_lighting/7.bloom/7.blur.fs
@@ -348,9 +416,12 @@ class Renderer {
       }`;
 
     this.shaders.blur = new Shader(this._gl, vs, fs);
+    this.shaders.blur.use();
+    this.shaders.blur.set1fv('kernel', this._halfKernel);
+
     this.utils.createTexInFrameBuffer('blurFirstPassResult',
       [{
-        texName: 'blurFirstPassResult',
+        name: 'blurFirstPassResult',
         width: this._clippedSize[0] * this._zoom,
         height: this._clippedSize[1] * this._zoom,
       }]
@@ -358,7 +429,7 @@ class Renderer {
 
     this.utils.createTexInFrameBuffer('styledBg',
       [{
-        texName: 'styledBg',
+        name: 'styledBg',
         width: this._clippedSize[0] * this._zoom,
         height: this._clippedSize[1] * this._zoom,
       }]
@@ -374,7 +445,7 @@ class Renderer {
 
       void main() {
         gl_Position = a_pos;
-        v_texcoord = a_pos.xy * vec2(0.5, 0.5) + 0.5;
+        v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
       }`;
 
     const fs =
@@ -385,21 +456,113 @@ class Renderer {
       out vec4 out_color;
       uniform vec4 fill_color;
 
-      uniform sampler2D bg;
-
       void main() {
-        float bg_alpha = texture(bg, v_texcoord).a;
-        out_color = vec4(fill_color.xyz * bg_alpha, bg_alpha);
+        // solid color background
+        out_color = fill_color;
       }`;
 
     this.shaders.fill = new Shader(this._gl, vs, fs);
+    this.shaders.fill.use();
+    // set solid color in fill shader
+    const fillColor = this._bgColor.map(x => x / 255);
+    this.shaders.fill.set4f('fill_color', ...fillColor, 1);
+
     this.utils.createTexInFrameBuffer('styledBg',
       [{
-        texName: 'styledBg',
+        name: 'styledBg',
         width: this._clippedSize[0] * this._zoom,
         height: this._clippedSize[1] * this._zoom,
       }]
     );
+  }
+
+  _setupImageShader() {
+
+    const vs =
+      `#version 300 es
+      in vec4 a_pos;
+      out vec2 v_texcoord;
+
+      void main() {
+        gl_Position = a_pos;
+        v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
+      }`;
+
+    const fs =
+      `#version 300 es
+      precision highp float;
+
+      in vec2 v_texcoord;
+      out vec4 out_color;
+      uniform int has_bg;
+      uniform vec2 canvas_size;
+
+      uniform sampler2D bg_image;
+
+      void main() {
+        if (has_bg != 0) {
+          // stretch the background image to fit the viewport
+          vec2 image_size = vec2(textureSize(bg_image, 0));
+          float image_ratio = image_size.x / image_size.y;
+          float canvas_ratio = canvas_size.x / canvas_size.y;
+          vec2 bgcoord = (v_texcoord / image_size) * canvas_size;
+          if (image_ratio > canvas_ratio) {
+            bgcoord *= image_size.y / canvas_size.y;
+          } else {
+            bgcoord *= image_size.x / canvas_size.x;
+          }
+          out_color = texture(bg_image, bgcoord);
+        } else {
+          // checkerboard background
+          vec2 offset = floor(v_texcoord * canvas_size / 5.0);
+          if (mod(offset.x, 2.0) == 0.0) {
+            if (mod(offset.y, 2.0) == 0.0) {
+              out_color = vec4(1.0, 1.0, 1.0, 1.0);
+            } else {
+              out_color = vec4(0.8, 0.8, 0.8, 1.0);
+            }
+          } else {
+            if (mod(offset.y, 2.0) != 0.0) {
+              out_color = vec4(1.0, 1.0, 1.0, 1.0);
+            } else {
+              out_color = vec4(0.8, 0.8, 0.8, 1.0);
+            }
+          }
+        }
+      }`;
+
+    this.shaders.image = new Shader(this._gl, vs, fs);
+    this.utils.createAndBindTexture({
+      name: 'bgImage'
+    });
+    this.utils.createTexInFrameBuffer('styledBg',
+      [{
+        name: 'styledBg',
+        width: this._clippedSize[0] * this._zoom,
+        height: this._clippedSize[1] * this._zoom,
+      }]
+    );
+
+    this.shaders.image.use();
+    this.shaders.image.set2f(
+      'canvas_size', 
+      this._clippedSize[0],
+      this._clippedSize[1]
+    );
+    if (this._backgroundImageSource) {
+      this.shaders.image.set1i('has_bg', 1);
+      this.utils.bindTexture('bgImage');
+      this._gl.texImage2D(
+        this._gl.TEXTURE_2D,
+        0,
+        this._gl.RGBA,
+        this._gl.RGBA,
+        this._gl.UNSIGNED_BYTE,
+        this._backgroundImageSource
+      );
+    } else {
+      this.shaders.image.set1i('has_bg', 0);
+    }
   }
 
   _setupBlendShader() {
@@ -440,50 +603,65 @@ class Renderer {
     this.shaders.blend.set1i('orig', 2); // texture units 2
   }
 
-  uploadNewTexture(imageSource, clippedSize) {
-    let id = Date.now(); // used for sync
-    return new Promise(resolve => {
+  async uploadNewTexture(imageSource, clippedSize) {
 
-      if (this._clippedSize[0] !== clippedSize[0] ||
-        this._clippedSize[1] !== clippedSize[1]) {
-        this._clippedSize = clippedSize;
+    if (this._clippedSize[0] !== clippedSize[0] ||
+      this._clippedSize[1] !== clippedSize[1]) {
+      this._clippedSize = clippedSize;
 
-        // all FRAMEBUFFERs should be re-setup when clippedSize changes 
-        this.setup();
-      }
+      // all FRAMEBUFFERs should be reconfigured when clippedSize changes 
+      this.setup();
+    }
 
-      this._imageSource = imageSource;
+    this._imageSource = imageSource;
 
-      this.utils._tex.image = this.utils.createAndBindTexture(this._gl.LINEAR);
-      this._gl.texImage2D(
-        this._gl.TEXTURE_2D,
-        0,
-        this._gl.RGBA,
-        this._gl.RGBA,
-        this._gl.UNSIGNED_BYTE,
-        imageSource
-      );
+    this.utils.bindTexture('image');
+    this._gl.texImage2D(
+      this._gl.TEXTURE_2D,
+      0,
+      this._gl.RGBA,
+      this._gl.RGBA,
+      this._gl.UNSIGNED_BYTE,
+      imageSource
+    );
 
-      resolve(id);
-    });
   }
 
   async drawOutputs(newSegMap) {
 
     let start = performance.now();
 
-    if (typeof newSegMap !== 'undefined') {
+    this._gl.canvas.width = this._clippedSize[0] * this._zoom;
+    this._gl.canvas.height = this._clippedSize[1] * this._zoom;
+    this.utils.setViewport(this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+
+    // Display color labels
+    if (this._effect === 'label') {
       this._segMap = newSegMap;
+      this._predictions = this._argmaxClippedSegMap(newSegMap);
+      this.utils.bindTexture('predictions');
+      this._gl.pixelStorei(this._gl.UNPACK_ALIGNMENT, 1);
+      this._gl.texImage2D(
+        this._gl.TEXTURE_2D,
+        0,
+        this._gl.ALPHA,
+        this._clippedSize[0],
+        this._clippedSize[1],
+        0,
+        this._gl.ALPHA,
+        this._gl.UNSIGNED_BYTE,
+        this._predictions
+      );
+      this._drawColorLabel();
+    }
 
-      const outputHeight = newSegMap.outputShape[0];
-      const outputWidth = newSegMap.outputShape[1];
-
-      this._outputSize = [outputWidth, outputHeight];
-
-      if (this.effect === 'label') {
-        this._predictions = this._argmaxClippedSegMap(newSegMap);
-        // upload predictions texture
-        this.utils._tex.predictions = this.utils.createAndBindTexture(this._gl.NEAREST);
+    // Person segmentation
+    else {
+      this._segMap = newSegMap;
+      this._predictions = this._argmaxClippedSegMapPerson(newSegMap);
+      if (this._guidedFilterRadius === 0) {
+        // guided filter is disabled
+        this.utils.bindTexture('predictions');
         this._gl.pixelStorei(this._gl.UNPACK_ALIGNMENT, 1);
         this._gl.texImage2D(
           this._gl.TEXTURE_2D,
@@ -497,33 +675,17 @@ class Renderer {
           this._predictions
         );
       } else {
-        // convert precdictions to a binary mask
-        this._predictions = this._argmaxClippedSegMapPerson(newSegMap);
-        this.utils._tex.predictions = this._guidedFilter.apply(
+        // guided filter is enabled
+        let refinedMask = this.guidedFilter.apply(
           this._imageSource,
           this._predictions,
           this._clippedSize[0],
           this._clippedSize[1]
         );
+        this.utils.setTexture('predictions', refinedMask);
       }
-
-
-      this._gl.canvas.width = this._clippedSize[0] * this._zoom;
-      this._gl.canvas.height = this._clippedSize[1] * this._zoom;
-      this._gl.viewport(
-        0,
-        0,
-        this._gl.drawingBufferWidth,
-        this._gl.drawingBufferHeight
-      );
-    }
-
-    if (this._effect === 'label') {
-      this._drawColorLabel();
-    } else {
       this._drawPerson();
-    }
-
+    }  
     let elapsed = performance.now() - start;
     console.log(`Draw time: ${elapsed.toFixed(2)} ms`);
     return elapsed;
@@ -534,9 +696,9 @@ class Renderer {
     currShader.use();
     currShader.set1f('u_alpha', this._colorMapAlpha);
     this.utils.bindFramebuffer(null);
-    this.utils.bindInputTexture(['image', 'predictions', 'palette']);
+    this.utils.bindInputTextures(['image', 'predictions', 'palette']);
     this.utils.render();
-  
+
     // generate label map. { labelName: [ labelName, rgbTuple ] }
     let uniqueLabels = new Set(this._predictions);
     let labelMap = {};
@@ -566,7 +728,7 @@ class Renderer {
       return;
     }
 
-    let outputW = this._segMap.outputShape[0];
+    let outputW = this._clippedSize[0];
     let x = Math.floor(this._correctionFactor * hoverPos.x / this._zoom);
     let y = Math.floor(this._correctionFactor * hoverPos.y / this._zoom);
     let labelId = this._predictions[x + y * outputW];
@@ -581,39 +743,45 @@ class Renderer {
     let currShader;
     this.shaders.extract.use();
     this.utils.bindFramebuffer('extract');
-    this.utils.bindInputTexture(['image', 'predictions']);
+    this.utils.bindInputTextures(['image', 'predictions']);
     this.utils.render();
 
-    if (this._effect == 'blur') {
-      // feed extracted background into blur shader
-      currShader = this.shaders.blur;
-      currShader.use();
-      currShader.set1fv('kernel', this._halfKernel);
+    switch (this._effect) {
+      case 'blur': {
+        // feed extracted background into blur shader
+        currShader = this.shaders.blur;
+        currShader.use();
 
-      currShader.set1i('first_pass', 1);
-      this.utils.bindFramebuffer('blurFirstPassResult');
-      this.utils.bindInputTexture(['bg']);
-      this.utils.render();
+        currShader.set1i('first_pass', 1);
+        this.utils.bindFramebuffer('blurFirstPassResult');
+        this.utils.bindInputTextures(['bg']);
+        this.utils.render();
 
-      currShader.set1i('first_pass', 0);
-      this.utils.bindFramebuffer('styledBg');
-      this.utils.bindInputTexture(['blurFirstPassResult']);
-      this.utils.render();
-    } else {
-      // feed extracted background into fill shader
-      const fillColor = this._bgColor.map(x => x / 255);
-      currShader = this.shaders.fill;
-      currShader.use();
-      currShader.set4f('fill_color', ...fillColor, 1);
-      this.utils.bindFramebuffer('styledBg');
-      this.utils.bindInputTexture(['bg']);
-      this.utils.render();
+        currShader.set1i('first_pass', 0);
+        this.utils.bindFramebuffer('styledBg');
+        this.utils.bindInputTextures(['blurFirstPassResult']);
+        this.utils.render();
+      } break;
+      case 'image': {
+        // set image in image shader
+        currShader = this.shaders.image;
+        currShader.use();
+        this.utils.bindFramebuffer('styledBg');
+        this.utils.bindInputTextures(['bgImage']);
+        this.utils.render();
+      } break;
+      case 'fill': {
+        currShader = this.shaders.fill;
+        currShader.use();
+        this.utils.bindFramebuffer('styledBg');
+        this.utils.render();
+      }
     }
 
     // feed into blend shader
     this.shaders.blend.use();
     this.utils.bindFramebuffer(null);
-    this.utils.bindInputTexture(['fg', 'styledBg', 'image']);
+    this.utils.bindInputTextures(['fg', 'styledBg', 'image']);
     this.utils.render();
   }
 
@@ -626,7 +794,7 @@ class Renderer {
     const numClasses = segmap.outputShape[2];
     const data = segmap.data;
     const mask = new Uint8Array(clippedHeight * clippedWidth);
-    
+
     let i = 0;
     for (let h = 0; h < clippedHeight; h++) {
       const starth = h * outputWidth * numClasses;
@@ -656,7 +824,7 @@ class Renderer {
     const numClasses = segmap.outputShape[2];
     const data = segmap.data;
     const mask = new Uint8Array(clippedHeight * clippedWidth);
-    
+
     let i = 0;
     for (let h = 0; h < clippedHeight; h++) {
       const starth = h * outputWidth * numClasses;
@@ -689,5 +857,10 @@ class Renderer {
     // normalize kernel
     const sum = kernel.reduce((x, y) => x + y);
     return kernel.map((x) => x / sum);
+  }
+
+  deleteAll() {
+    this.utils.delete();
+    this.guidedFilter.utils.delete();
   }
 }

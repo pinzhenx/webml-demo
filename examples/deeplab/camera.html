@@ -50,7 +50,7 @@
       <div class="row top-margin">
         <div class="col-md-12 col-lg-8 offset-lg-2" align="center">
           <div class="image-wrapper">
-            <canvas id="output"></canvas>
+            <canvas id="output" width="448" height="448"></canvas>
             <video id="video" autoplay playsinline></video>
           </div>
         </div>
@@ -70,11 +70,14 @@
             </div> 
             <div class="btn-group btn-group-toggle btn-group-sm effects-select" data-toggle="buttons">
               <label class="btn btn-secondary">
-                <input type="radio" value="label" autocomplete="off" checked> LABEL
+                <input type="radio" value="label" autocomplete="off" checked> MAP
               </label>
               <label class="btn btn-secondary">
                 <input type="radio" value="fill" autocomplete="off"> FILL
               </label>
+              <label class="btn btn-secondary">
+                  <input type="radio" value="image" autocomplete="off"> IMG
+                </label>
               <label class="btn btn-secondary">
                 <input type="radio" value="blur" autocomplete="off"> BLUR
               </label>
@@ -110,6 +113,17 @@
             <div id="color-picker-container"></div>
           </div>
 
+          <div class="row select-bg-wrapper justify-content-center">
+            <div class="label">
+              <label class="btn btn-outline-primary btn-sm">
+                Select Background <input type="file" id="chooseBackground" accept="image/*" hidden>
+              </label>
+              <button id="clearBackground" class="btn btn-outline-secondary btn-sm">
+                Clear Background
+              </button>
+            </div> 
+          </div>
+
           <div class="row color-map-alpha-wrapper">
             <div class="label">
               OPACITY: <span class="color-map-alpha-value"></span>
@@ -134,10 +148,10 @@
     <script src="../util/tflite/schema/schema_generated.js"></script>
     <script src="../util/tflite/TfLiteModelUtils.js"></script>
     <script src="../util/tflite/TFliteModelImporter.js"></script>
-    <script src="WebGLUtils.js"></script>
-    <script src="Shader.js"></script>
-    <script src="GuidedFilter.js"></script>
-    <script src="DrawOutputs.js"></script>
+    <script src="src/WebGLUtils.js"></script>
+    <script src="src/Shader.js"></script>
+    <script src="src/GuidedFilter.js"></script>
+    <script src="src/DrawOutputs.js"></script>
     <script src="utils.js"></script>
     <script src="main.js"></script>
     <script>

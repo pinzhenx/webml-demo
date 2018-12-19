@@ -30,6 +30,22 @@ const deeplab224dilated = {
   outputSize: [224, 224, 21],
 };
 
+const deeplab321 = {
+  modelName: 'DeepLab 321',
+  modelFile: './model/deeplab_mobilenetv2_321.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [321, 321, 3],
+  outputSize: [321, 321, 21],
+};
+
+const deeplab321dilated = {
+  modelName: 'DeepLab 321 Atrous',
+  modelFile: './model/deeplab_mobilenetv2_321_dilated.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [321, 321, 3],
+  outputSize: [321, 321, 21],
+};
+
 const preferMap = {
   'MPS': 'sustained',
   'BNNS': 'fast',
@@ -42,8 +58,10 @@ function main(camera) {
   const availableModels = [
     deeplab224dilated,
     deeplab513dilated,
+    deeplab321dilated,
     deeplab513,
     deeplab224,
+    deeplab321,
   ];
   const videoElement = document.getElementById('video');
   const imageElement = document.getElementById('image');
@@ -405,8 +423,10 @@ function main(camera) {
     let model = {
       '224dilated': deeplab224dilated,
       '513dilated': deeplab513dilated,
+      '321dilated': deeplab321dilated,
       '513': deeplab513,
       '224': deeplab224,
+      '321': deeplab321,
     }[paramModel];
     utils.changeModelParam(model);
     currentModel = model.modelName;

@@ -392,6 +392,26 @@ function main(camera) {
     }
   }
 
+  function getModelParam() {
+    var parameterStr = window.location.search.substr(1);
+    var reg = new RegExp("(^|&)model=([^&]*)(&|$)", "i");
+    var r = parameterStr.match(reg);
+    if (r != null) {
+      return unescape(r[2]);
+    }
+  }
+  let paramModel = getModelParam();
+  if (paramModel) {
+    let model = {
+      '224dilated': deeplab224dilated,
+      '513dilated': deeplab513dilated,
+      '513': deeplab513,
+      '224': deeplab224,
+    }[paramModel];
+    utils.changeModelParam(model);
+    currentModel = model.modelName;
+  }
+
   // register models
   for (let model of availableModels) {
     let dropdownBtn = $('<button class="dropdown-item d-flex"/>')

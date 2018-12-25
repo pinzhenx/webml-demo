@@ -26,7 +26,7 @@ class Renderer {
     this._halfKernel = kernel1D.slice(this._blurRadius); // take the second half
     this._guidedFilterRadius = 0;
 
-    this._correctionFactor = 0.99;
+    this._correctionFactor = 0.97;
 
     this._colorPalette = new Uint8Array([
       45, 52, 54,
@@ -88,8 +88,8 @@ class Renderer {
     // take the second half
     this._halfKernel = kernel1D.slice(radius);
 
-    // reconfigure shaders with new kernel
-    this.setup().then(_ => this.drawOutputs(this._segMap));
+    this._setupBlurShader();
+    this.drawOutputs(this._segMap);
   }
 
   get colorMapAlpha() {
@@ -227,7 +227,7 @@ class Renderer {
       void main() {
         gl_Position = a_pos;
         v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
-        v_maskcord = v_texcoord * ${this._correctionFactor};
+        v_maskcord = v_texcoord * float(${this._correctionFactor});
       }`;
 
     const fs =
@@ -301,21 +301,20 @@ class Renderer {
       void main() {
         gl_Position = a_pos;
         v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
-        v_maskcord = v_texcoord * ${this._correctionFactor};
+        v_maskcord = v_texcoord * float(${this._correctionFactor});
       }`;
 
     const vsWithPreprocess =
-    `#version 300 es
-    in vec4 a_pos;
-    out vec2 v_texcoord;
-    out vec2 v_maskcord;
+      `#version 300 es
+      in vec4 a_pos;
+      out vec2 v_texcoord;
+      out vec2 v_maskcord;
 
-    void main() {
-      gl_Position = a_pos;
-      v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
-      v_maskcord = a_pos.xy * vec2(0.5, 0.5) + 0.5;
-    }`;
-  
+      void main() {
+        gl_Position = a_pos;
+        v_texcoord = a_pos.xy * vec2(0.5, -0.5) + 0.5;
+        v_maskcord = a_pos.xy * vec2(0.5, 0.5) + 0.5;
+      }`;
 
     const fs =
       `#version 300 es
@@ -629,6 +628,9 @@ class Renderer {
 
   async drawOutputs(newSegMap) {
 
+    if (!newSegMap)
+      return;
+
     let start = performance.now();
 
     this._gl.canvas.width = this._clippedSize[0] * this._zoom;
@@ -722,8 +724,12 @@ class Renderer {
   }
 
   highlightHoverLabel(hoverPos) {
-    if (hoverPos === null) {
-      // clear highlight when mouse leaving canvas
+    if (!this._predictions) {
+      return;
+    }
+
+    if (!hoverPos) {
+      // clear highlight when mouse leaves canvas
       $('.seg-label').removeClass('highlight');
       return;
     }

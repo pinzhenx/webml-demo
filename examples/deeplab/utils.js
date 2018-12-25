@@ -36,7 +36,7 @@ class Utils {
     result = await this.model.createCompiledModel();
     console.log(`compilation result: ${result}`);
     let start = performance.now();
-    this.outputTensor = new Float32Array(this.outputSize.reduce((x,y) => x*y));
+    // this.outputTensor = new Float32Array(this.outputSize.reduce((x,y) => x*y));
     result = await this.model.compute(this.inputTensor, this.outputTensor);
     let elapsed = performance.now() - start;
     console.log(`warmup time: ${elapsed.toFixed(2)} ms`);
@@ -46,7 +46,6 @@ class Utils {
   async predict(canvas) {
     if (!this.initialized) return;
     this.prepareInputTensor(this.inputTensor, canvas);
-    this.outputTensor = new Float32Array(this.outputSize.reduce((x,y) => x*y));
     let start = performance.now();
     let result = await this.model.compute(this.inputTensor, this.outputTensor);
     let elapsed = performance.now() - start;

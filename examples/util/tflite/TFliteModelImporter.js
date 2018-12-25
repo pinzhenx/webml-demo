@@ -6,7 +6,6 @@ class TFliteModelImporter {
     this._execution;
     this._tensorIds = [];
     this._operands = [];
-    this._operandTypes = [];
     this._operandIndex = 0;
     this._options = {
       softmax: kwargs.softmax,
@@ -57,7 +56,15 @@ class TFliteModelImporter {
       let tensor = graph.tensors(i);
       let type;
       let typedArray;
+      let isQuantized = false;
       switch (tensor.type()) {
+        case tflite.TensorType.FLOAT32: {
+          type = this._nn.TENSOR_FLOAT32;
+          typedArray = Float32Array;
+        } break;
+        case tflite.TensorType.UINT8:
+          isQuantized = true;
+          // Fall through
         case tflite.TensorType.FLOAT32: {
           type = this._nn.TENSOR_FLOAT32;
           typedArray = Float32Array;
@@ -76,7 +83,22 @@ class TFliteModelImporter {
       let buffer = this._rawModel.buffers(tensor.buffer());
       if (buffer.dataLength() > 0) {
         let raw = buffer.dataArray();
-        let data = new typedArray(raw.buffer, raw.byteOffset, raw.byteLength / typedArray.BYTES_PER_ELEMENT);
+        let data;
+        if (isQuantized) {
+          data = new typedArray(raw.byteLength);
+
+          // https://github.com/lutzroeder/netron/blob/master/src/tflite.js#L389
+          let quantization = tensor.quantization();
+          let scale = (quantization.scaleLength() == 1) ? quantization.scale(0) : 0;
+          let zeroPoint = (quantization.zeroPointLength() == 1) ? quantization.zeroPoint(0).toFloat64() : 0;
+          let quantizedData = new Int8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+          data = new typedArray(raw.byteLength);
+          for (let i = 0; i < raw.byteLength; i++) {
+            data[i] = scale * (quantizedData[i] - zeroPoint);
+          }
+        } else {
+          data = new typedArray(raw.buffer, raw.byteOffset, raw.byteLength / typedArray.BYTES_PER_ELEMENT);
+        }
         this._setOperandValue(tensorId, data);
       }
     }
@@ -101,7 +123,6 @@ class TFliteModelImporter {
   _addOperand(type, value) {
     let index = this._operandIndex++;
     this._model.addOperand(type);
-    this._operandTypes[index] = type;
     if (typeof value !== 'undefined')
       this._setOperandValue(index, value); 
     return index;
@@ -145,8 +166,8 @@ class TFliteModelImporter {
       let operator = graph.operators(i);
       let opCode = this._rawModel.operatorCodes(operator.opcodeIndex()).builtinCode();
       let opType;
-      let inputs = Array.from(operator.inputsArray());
-      let outputs = Array.from(operator.outputsArray());
+      let inputs = Array.from(operator.inputsArray()).map(i => this._tensorIds[i]);
+      let outputs = Array.from(operator.outputsArray()).map(i => this._tensorIds[i]);
       switch (opCode) {
         case tflite.BuiltinOperator.ADD: {
           let options = operator.builtinOptions(new tflite.AddOptions());
@@ -250,8 +271,8 @@ class TFliteModelImporter {
           const input = inputs[0];
 
           // Conv with identity kernel
-          const inputType = this._operandTypes[input];
-          const nChannels = inputType.dimensions[3];
+          const inputShape = graph.tensors(input).shapeArray();
+          const nChannels = inputShape[3];
 
           const convFilterTensor = new Float32Array(nChannels * nChannels).fill(0);
           const convBiasTensor = new Float32Array(nChannels).fill(0);
@@ -282,8 +303,8 @@ class TFliteModelImporter {
           const input = inputs[0];
 
           // Conv with identity kernel
-          const inputType = this._operandTypes[input];
-          const nChannels = inputType.dimensions[3];
+          const inputShape = graph.tensors(input).shapeArray();
+          const nChannels = inputShape[3];
 
           const convFilterTensor = new Float32Array(nChannels * nChannels).fill(0);
           const convBiasTensor = new Float32Array(nChannels).fill(0);
@@ -329,10 +350,8 @@ class TFliteModelImporter {
         case tflite.BuiltinOperator.SQUEEZE: {
           let options = operator.builtinOptions(new tflite.SqueezeOptions());
           let tensorType = {type: this._nn.TENSOR_INT32, dimensions: [2]};
-          let tensorId = this._operandIndex++;
-          this._model.addOperand(tensorType);
+          let tensorId = this._addOperand(tensorType, new Int32Array([1, 1001]));
           this._tensorIds.push(tensorId);
-          this._model.setOperandValue(tensorId, new Int32Array([1, 1001]));
           inputs.push(tensorId);
           opType = this._nn.RESHAPE;         
         } break;
@@ -348,17 +367,23 @@ class TFliteModelImporter {
         case tflite.BuiltinOperator.RESIZE_BILINEAR: {
 
           let newSize = this._operands[inputs[1]];
-          let oldSize = this._operandTypes[inputs[0]].dimensions.slice(1, 3);
+          let oldSize = graph.tensors(inputs[0]).shapeArray().slice(1, 3);
           if (newSize[0] === oldSize[0] && newSize[1] === oldSize[1]) {
             this._tensorIds[outputs[0]] = this._tensorIds[inputs[0]];
             continue;
           }
 
-          inputs = [this._tensorIds[inputs[0]]];
+          inputs = [inputs[0]];
           inputs.push(this._addScalarInt32(newSize[0]));
           inputs.push(this._addScalarInt32(newSize[1]));
 
           opType = this._nn.RESIZE_BILINEAR;
+        } break;
+        case tflite.BuiltinOperator.DEQUANTIZE: {
+          // skip dequantize
+          this._model.setOperandValue(outputs[0], this._operands[inputs[0]]);
+          // this._model._operands[outputs[0]].value = this._model._operands[inputs[0]].value;
+          continue;
         } break;
         default: {
           throw new Error(`operator type ${opCode} is not supported.`);
@@ -377,8 +402,7 @@ class TFliteModelImporter {
           // Add outputs
           outputs = [];
           let tensorType = {type: this._nn.TENSOR_FLOAT32, dimensions: Array.from(outputTensor.shapeArray())};
-          let tensorId = this._operandIndex++;
-          this._model.addOperand(tensorType);
+          let tensorId = this._addOperand(tensorType);
           this._tensorIds.push(tensorId);
           outputs.push(tensorId);
 

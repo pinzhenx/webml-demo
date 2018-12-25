@@ -209,7 +209,7 @@ class GuidedFilter {
 
         in vec2 v_texcoord;
         out vec4 result;
-  
+
         uniform sampler2D result2;
 
         void main() {

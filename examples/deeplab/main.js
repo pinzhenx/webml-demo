@@ -14,9 +14,25 @@ const deeplab513dilated = {
   outputSize: [513, 513, 21],
 };
 
+const deeplab513trainval = {
+  modelName: 'DeepLab 513 Trainval',
+  modelFile: './model/deeplab_mobilenetv2_513_trainval.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [513, 513, 3],
+  outputSize: [513, 513, 21],
+};
+
 const deeplab224 = {
   modelName: 'DeepLab 224',
   modelFile: './model/deeplab_mobilenetv2_224.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [224, 224, 3],
+  outputSize: [224, 224, 21],
+};
+
+const deeplab224trainval = {
+  modelName: 'DeepLab 224 Trainval',
+  modelFile: './model/deeplab_mobilenetv2_224_trainval.tflite',
   labelsFile: './model/labels.txt',
   inputSize: [224, 224, 3],
   outputSize: [224, 224, 21],
@@ -30,6 +46,16 @@ const deeplab224dilated = {
   outputSize: [224, 224, 21],
 };
 
+const deeplab257dilated = {
+  modelName: 'DeepLab 257 Atrous',
+  modelFile: './model/deeplab_mobilenetv2_257_dilated.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [257, 257, 3],
+  outputSize: [257, 257, 21],
+};
+
+
+
 const deeplab321 = {
   modelName: 'DeepLab 321',
   modelFile: './model/deeplab_mobilenetv2_321.tflite',
@@ -38,12 +64,36 @@ const deeplab321 = {
   outputSize: [321, 321, 21],
 };
 
+const deeplab129 = {
+  modelName: 'DeepLab 129',
+  modelFile: './model/deeplab_mobilenetv2_129.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [129, 129, 3],
+  outputSize: [129, 129, 21],
+};
+
 const deeplab321dilated = {
   modelName: 'DeepLab 321 Atrous',
   modelFile: './model/deeplab_mobilenetv2_321_dilated.tflite',
   labelsFile: './model/labels.txt',
   inputSize: [321, 321, 3],
   outputSize: [321, 321, 21],
+};
+
+const deeplab513quantized = {
+  modelName: 'DeepLab 513 quantized',
+  modelFile: './model/deeplab_mobilenetv2_513_dilated_quantized.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [513, 513, 3],
+  outputSize: [513, 513, 21],
+};
+
+const deeplab513decoder = {
+  modelName: 'DeepLab 513 Decoder',
+  modelFile: './model/deeplab_mobilenetv2_513_decoder.tflite',
+  labelsFile: './model/labels.txt',
+  inputSize: [513, 513, 3],
+  outputSize: [513, 513, 21],
 };
 
 const preferMap = {
@@ -56,12 +106,20 @@ const preferMap = {
 function main(camera) {
 
   const availableModels = [
-    deeplab224dilated,
-    deeplab513dilated,
-    deeplab321dilated,
-    deeplab513,
     deeplab224,
+    deeplab257dilated,
+    deeplab321dilated,
+    deeplab513decoder,
+    deeplab224dilated,
+    deeplab224trainval,
+
+    deeplab513dilated,
+    deeplab513trainval,
+    deeplab513quantized,
+    deeplab513,
+
     deeplab321,
+    deeplab129
   ];
   const videoElement = document.getElementById('video');
   const imageElement = document.getElementById('image');
@@ -161,7 +219,7 @@ function main(camera) {
     renderer.refineEdgeRadius = refineEdgeRadius;
   };
 
-  
+
 
   $('.effects-select .btn input').filter(function() {
     return this.value === renderer.effect;
@@ -347,31 +405,36 @@ function main(camera) {
     }
   }
 
-  function predictAndDraw(imageSource) {
-    clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
-    // console.debug('1 upload start');
-    renderer.uploadNewTexture(imageSource, clippedSize)
-      // .then(_ => console.debug('2 upload done'));
 
-    // console.debug('3 predict start');
-    return utils.predict(preprocessCanvas).then(result => {
-      // console.debug('4 predict done, draw start');
+  let prevSegMap = null;
+
+  function predictAndDraw(imageSource) {
+
+    // predict current frame
+    let predictPromise = utils.predict(preprocessCanvas);
+
+    // prepare next frame
+    let clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
+    renderer.uploadNewTexture(imageSource, clippedSize);
+
+    // draw prev frame
+    renderer.drawOutputs(prevSegMap) 
+      // .then((drawTime) => {
+      //     inferTimeAcc += inferTime;
+      //     drawTimeAcc += drawTime;
+      //     if (++counter === counterN) {
+      //       console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
+      //       console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
+      //       counter = inferTimeAcc = drawTimeAcc = 0;
+      //     }
+      //   });
+    renderer.highlightHoverLabel(hoverPos);
+
+    return predictPromise.then((result) => {
       let inferTime = result.time;
+      prevSegMap = result.segMap;
       console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
       inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
-
-      renderer.drawOutputs(result.segMap)
-        // .then((drawTime) => {
-        //   inferTimeAcc += inferTime;
-        //   drawTimeAcc += drawTime;
-        //   if (++counter === counterN) {
-        //     console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
-        //     console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
-        //     counter = inferTimeAcc = drawTimeAcc = 0;
-        //   }
-        // });
-      renderer.highlightHoverLabel(hoverPos);
-      // console.debug('5 draw done\n\n');
     });
   }
 
@@ -421,12 +484,12 @@ function main(camera) {
   let paramModel = getModelParam();
   if (paramModel) {
     let model = {
+      '321dilated': deeplab321dilated,
       '224dilated': deeplab224dilated,
       '513dilated': deeplab513dilated,
-      '321dilated': deeplab321dilated,
       '513': deeplab513,
       '224': deeplab224,
-      '321': deeplab321,
+      '321': deeplab224,
     }[paramModel];
     utils.changeModelParam(model);
     currentModel = model.modelName;

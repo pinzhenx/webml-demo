@@ -45,7 +45,7 @@ function main(camera) {
   const selectBackgroundButton = document.getElementById('chooseBackground');
   const clearBackgroundButton = document.getElementById('clearBackground');
   const outputCanvas = document.getElementById('output');
-  const preprocessCanvas = document.createElement('canvas');
+  // const preprocessCanvas = document.createElement('canvas');
   // const preprocessCanvas = new OffscreenCanvas(224, 224);
   let clippedSize = [];
   let currentBackend = '';
@@ -313,20 +313,13 @@ function main(camera) {
   }
 
   async function predictAndDraw(imageSource) {
-    clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
-    // console.debug('1 upload start');
-    renderer.uploadNewTexture(imageSource, clippedSize)
-      // .then(_ => console.debug('2 upload done'));
-
-    // console.debug('3 predict start');
-    let result = await utils.predict(preprocessCanvas);
-
+    clippedSize = utils.prepareInput(imageSource);
+    renderer.uploadNewTexture(imageSource, clippedSize);
+    let result = await utils.predict();
     let inferTime = result.time;
     console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
     inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
-
-    renderer.drawOutputs(result.segMap)
-
+    renderer.drawOutputs(result.segMap);
     renderer.highlightHoverLabel(hoverPos);
   }
 

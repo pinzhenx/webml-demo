@@ -56,19 +56,16 @@ class TFliteModelImporter {
       let tensor = graph.tensors(i);
       let type;
       let typedArray;
-      let isQuantized = false;
       switch (tensor.type()) {
         case tflite.TensorType.FLOAT32: {
           type = this._nn.TENSOR_FLOAT32;
           typedArray = Float32Array;
         } break;
-        case tflite.TensorType.UINT8:
-          isQuantized = true;
-          // Fall through
         case tflite.TensorType.FLOAT32: {
           type = this._nn.TENSOR_FLOAT32;
           typedArray = Float32Array;
         } break;
+        case tflite.TensorType.INT64:
         case tflite.TensorType.INT32: {
           type = this._nn.TENSOR_INT32;
           typedArray = Int32Array;
@@ -77,28 +74,14 @@ class TFliteModelImporter {
           throw new Error(`tensor type ${tensor.type()} is not supproted.`);
         }
       }
-      let tensorType = {type: type, dimensions: Array.from(tensor.shapeArray())};
+      let dims = tensor.shapeArray().length ? Array.from(tensor.shapeArray()) : [1];
+      let tensorType = {type: type, dimensions: dims};
       let tensorId = this._addOperand(tensorType);
       this._tensorIds.push(tensorId);
       let buffer = this._rawModel.buffers(tensor.buffer());
       if (buffer.dataLength() > 0) {
         let raw = buffer.dataArray();
-        let data;
-        if (isQuantized) {
-          data = new typedArray(raw.byteLength);
-
-          // https://github.com/lutzroeder/netron/blob/master/src/tflite.js#L389
-          let quantization = tensor.quantization();
-          let scale = (quantization.scaleLength() == 1) ? quantization.scale(0) : 0;
-          let zeroPoint = (quantization.zeroPointLength() == 1) ? quantization.zeroPoint(0).toFloat64() : 0;
-          let quantizedData = new Int8Array(raw.buffer, raw.byteOffset, raw.byteLength);
-          data = new typedArray(raw.byteLength);
-          for (let i = 0; i < raw.byteLength; i++) {
-            data[i] = scale * (quantizedData[i] - zeroPoint);
-          }
-        } else {
-          data = new typedArray(raw.buffer, raw.byteOffset, raw.byteLength / typedArray.BYTES_PER_ELEMENT);
-        }
+        let data = new typedArray(raw.buffer, raw.byteOffset, raw.byteLength / typedArray.BYTES_PER_ELEMENT);
         this._setOperandValue(tensorId, data);
       }
     }
@@ -378,6 +361,9 @@ class TFliteModelImporter {
           inputs.push(this._addScalarInt32(newSize[1]));
 
           opType = this._nn.RESIZE_BILINEAR;
+        } break;
+        case tflite.BuiltinOperator.ARG_MAX: {
+          opType = this._nn.ARG_MAX;
         } break;
         case tflite.BuiltinOperator.DEQUANTIZE: {
           // skip dequantize

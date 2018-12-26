@@ -164,12 +164,11 @@ class TFliteModelImporter {
         case tflite.BuiltinOperator.CONV_2D: {
           let options = operator.builtinOptions(new tflite.Conv2DOptions());
           let paddingCode = PaddingCodeMap.get(options.padding());
-          let dilated = options.dilationWFactor() !== 1 || options.dilationWFactor() !== 1;
           if (typeof paddingCode === 'undefined') {
             throw new Error(`Padding code ${options.padding()} is not supported.`);
           }
           inputs.push(this._addScalarInt32(paddingCode));
-          if (dilated) {
+          if (options.dilationWFactor() !== 1 || options.dilationWFactor() !== 1) {
             inputs.push(this._addScalarInt32(options.dilationWFactor()));
             inputs.push(this._addScalarInt32(options.dilationHFactor()));
             opType = this._nn.ATROUS_CONV_2D;
@@ -187,12 +186,11 @@ class TFliteModelImporter {
         case tflite.BuiltinOperator.DEPTHWISE_CONV_2D: {
           let options = operator.builtinOptions(new tflite.DepthwiseConv2DOptions());
           let paddingCode = PaddingCodeMap.get(options.padding());
-          let dilated = options.dilationWFactor() !== 1 || options.dilationWFactor() !== 1;
           if (typeof paddingCode === 'undefined') {
             throw new Error(`Padding code ${options.padding()} is not supported.`);
           }
           inputs.push(this._addScalarInt32(paddingCode));
-          if (dilated) {
+          if (options.dilationWFactor() !== 1 || options.dilationWFactor() !== 1) {
             inputs.push(this._addScalarInt32(options.dilationWFactor()));
             inputs.push(this._addScalarInt32(options.dilationHFactor()));
             opType = this._nn.ATROUS_DEPTHWISE_CONV_2D;

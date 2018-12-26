@@ -55,7 +55,6 @@ const deeplab257dilated = {
 };
 
 
-
 const deeplab321 = {
   modelName: 'DeepLab 321',
   modelFile: './model/deeplab_mobilenetv2_321.tflite',
@@ -106,8 +105,9 @@ const preferMap = {
 function main(camera) {
 
   const availableModels = [
-    deeplab224,
     deeplab257dilated,
+    deeplab224,
+
     deeplab321dilated,
     deeplab513decoder,
     deeplab224dilated,
@@ -405,36 +405,31 @@ function main(camera) {
     }
   }
 
-
-  let prevSegMap = null;
-
   function predictAndDraw(imageSource) {
+    clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
+    // console.debug('1 upload start');
+    renderer.uploadNewTexture(imageSource, clippedSize)
+      // .then(_ => console.debug('2 upload done'));
 
-    // predict current frame
-    let predictPromise = utils.predict(preprocessCanvas);
-
-    // prepare next frame
-    let clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
-    renderer.uploadNewTexture(imageSource, clippedSize);
-
-    // draw prev frame
-    renderer.drawOutputs(prevSegMap) 
-      // .then((drawTime) => {
-      //     inferTimeAcc += inferTime;
-      //     drawTimeAcc += drawTime;
-      //     if (++counter === counterN) {
-      //       console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
-      //       console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
-      //       counter = inferTimeAcc = drawTimeAcc = 0;
-      //     }
-      //   });
-    renderer.highlightHoverLabel(hoverPos);
-
-    return predictPromise.then((result) => {
+    // console.debug('3 predict start');
+    return utils.predict(preprocessCanvas).then(result => {
+      // console.debug('4 predict done, draw start');
       let inferTime = result.time;
-      prevSegMap = result.segMap;
       console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
       inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
+
+      renderer.drawOutputs(result.segMap)
+        // .then((drawTime) => {
+        //   inferTimeAcc += inferTime;
+        //   drawTimeAcc += drawTime;
+        //   if (++counter === counterN) {
+        //     console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
+        //     console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
+        //     counter = inferTimeAcc = drawTimeAcc = 0;
+        //   }
+        // });
+      renderer.highlightHoverLabel(hoverPos);
+      // console.debug('5 draw done\n\n');
     });
   }
 
@@ -624,8 +619,8 @@ function main(camera) {
     navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
-        // height: 513,
-        // width: 513,
+        height: 192,
+        width: 257,
         facingMode: 'environment',
       }
     }).then((stream) => {

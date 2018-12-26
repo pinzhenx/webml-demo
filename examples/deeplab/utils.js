@@ -36,7 +36,6 @@ class Utils {
     result = await this.model.createCompiledModel();
     console.log(`compilation result: ${result}`);
     let start = performance.now();
-    // this.outputTensor = new Float32Array(this.outputSize.reduce((x,y) => x*y));
     result = await this.model.compute(this.inputTensor, this.outputTensor);
     let elapsed = performance.now() - start;
     console.log(`warmup time: ${elapsed.toFixed(2)} ms`);

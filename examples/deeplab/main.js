@@ -468,6 +468,16 @@ function main(camera) {
     }
   }
 
+  function getPreferParam() {
+    var parameterStr = window.location.search.substr(1);
+    var reg = new RegExp("(^|&)prefer=([^&]*)(&|$)", "i");
+    var r = parameterStr.match(reg);
+    if (r != null) {
+      return unescape(r[2]);
+    }
+  }
+  currentPrefer = getPreferParam();
+  
   function getModelParam() {
     var parameterStr = window.location.search.substr(1);
     var reg = new RegExp("(^|&)model=([^&]*)(&|$)", "i");

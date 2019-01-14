@@ -13,6 +13,20 @@ const availableModels = [
     inputSize: [513, 513, 3],
     outputSize: [513, 513, 21],
   },
+  {
+    modelName: 'DeepLab 224',
+    modelFile: './model/deeplab_mobilenetv2_224.tflite',
+    labelsFile: './model/labels.txt',
+    inputSize: [224, 224, 3],
+    outputSize: [224, 224, 21],
+  },
+  {
+    modelName: 'DeepLab 224 Atrous',
+    modelFile: './model/deeplab_mobilenetv2_224_dilated.tflite',
+    labelsFile: './model/labels.txt',
+    inputSize: [224, 224, 3],
+    outputSize: [224, 224, 21],
+  }
 ];
 
 function main(camera) {
@@ -371,26 +385,7 @@ function main(camera) {
         // video cannot be uploaded to texture until being loaded
         videoElement.onloadeddata = resolve;
       });
-  function getModelParam() {
-    var parameterStr = window.location.search.substr(1);
-    var reg = new RegExp("(^|&)model=([^&]*)(&|$)", "i");
-    var r = parameterStr.match(reg);
-    if (r != null) {
-      return unescape(r[2]);
-    }
-  }
-  let paramModel = getModelParam();
-  if (paramModel) {
-    let model = {
-      '321dilated': deeplab321dilated,
-      '224dilated': deeplab224dilated,
-      '513dilated': deeplab513dilated,
-      '513': deeplab513,
-      '224': deeplab224,
-      '321': deeplab224,
-    }[paramModel];
-    utils.changeModelParam(model);
-    currentModel = model.modelName;
+    });
   }
 
   // register models

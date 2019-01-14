@@ -14,18 +14,18 @@ const availableModels = [
     outputSize: [513, 513, 21],
   },
   {
-    modelName: 'DeepLab 224',
-    modelFile: './model/deeplab_mobilenetv2_224.tflite',
+    modelName: 'DeepLab 321',
+    modelFile: './model/deeplab_mobilenetv2_321.tflite',
     labelsFile: './model/labels.txt',
-    inputSize: [224, 224, 3],
-    outputSize: [224, 224, 21],
+    inputSize: [321, 321, 3],
+    outputSize: [321, 321, 21],
   },
   {
-    modelName: 'DeepLab 224 Atrous',
-    modelFile: './model/deeplab_mobilenetv2_224_dilated.tflite',
+    modelName: 'DeepLab 321 Atrous',
+    modelFile: './model/deeplab_mobilenetv2_321_dilated.tflite',
     labelsFile: './model/labels.txt',
-    inputSize: [224, 224, 3],
-    outputSize: [224, 224, 21],
+    inputSize: [321, 321, 3],
+    outputSize: [321, 321, 21],
   }
 ];
 

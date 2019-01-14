@@ -1,126 +1,22 @@
-const deeplab513 = {
-  modelName: 'DeepLab 513',
-  modelFile: './model/deeplab_mobilenetv2_513.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [513, 513, 3],
-  outputSize: [513, 513, 21],
-};
-
-const deeplab513dilated = {
-  modelName: 'DeepLab 513 Atrous',
-  modelFile: './model/deeplab_mobilenetv2_513_dilated.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [513, 513, 3],
-  outputSize: [513, 513, 21],
-};
-
-const deeplab513trainval = {
-  modelName: 'DeepLab 513 Trainval',
-  modelFile: './model/deeplab_mobilenetv2_513_trainval.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [513, 513, 3],
-  outputSize: [513, 513, 21],
-};
-
-const deeplab224 = {
-  modelName: 'DeepLab 224',
-  modelFile: './model/deeplab_mobilenetv2_224.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [224, 224, 3],
-  outputSize: [224, 224, 21],
-};
-
-const deeplab224trainval = {
-  modelName: 'DeepLab 224 Trainval',
-  modelFile: './model/deeplab_mobilenetv2_224_trainval.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [224, 224, 3],
-  outputSize: [224, 224, 21],
-};
-
-const deeplab224dilated = {
-  modelName: 'DeepLab 224 Atrous',
-  modelFile: './model/deeplab_mobilenetv2_224_dilated.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [224, 224, 3],
-  outputSize: [224, 224, 21],
-};
-
-const deeplab257dilated = {
-  modelName: 'DeepLab 257 Atrous',
-  modelFile: './model/deeplab_mobilenetv2_257_dilated.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [257, 257, 3],
-  outputSize: [257, 257, 21],
-};
-
-
-const deeplab321 = {
-  modelName: 'DeepLab 321',
-  modelFile: './model/deeplab_mobilenetv2_321.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [321, 321, 3],
-  outputSize: [321, 321, 21],
-};
-
-const deeplab129 = {
-  modelName: 'DeepLab 129',
-  modelFile: './model/deeplab_mobilenetv2_129.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [129, 129, 3],
-  outputSize: [129, 129, 21],
-};
-
-const deeplab321dilated = {
-  modelName: 'DeepLab 321 Atrous',
-  modelFile: './model/deeplab_mobilenetv2_321_dilated.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [321, 321, 3],
-  outputSize: [321, 321, 21],
-};
-
-const deeplab513quantized = {
-  modelName: 'DeepLab 513 quantized',
-  modelFile: './model/deeplab_mobilenetv2_513_dilated_quantized.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [513, 513, 3],
-  outputSize: [513, 513, 21],
-};
-
-const deeplab513decoder = {
-  modelName: 'DeepLab 513 Decoder',
-  modelFile: './model/deeplab_mobilenetv2_513_decoder.tflite',
-  labelsFile: './model/labels.txt',
-  inputSize: [513, 513, 3],
-  outputSize: [513, 513, 21],
-};
-
-const preferMap = {
-  'MPS': 'sustained',
-  'BNNS': 'fast',
-  'sustained': 'MPS',
-  'fast': 'BNNS',
-};
+const availableModels = [
+  {
+    modelName: 'DeepLab 513',
+    modelFile: './model/deeplab_mobilenetv2_513.tflite',
+    labelsFile: './model/labels.txt',
+    inputSize: [513, 513, 3],
+    outputSize: [513, 513, 21],
+  },
+  {
+    modelName: 'DeepLab 513 Atrous',
+    modelFile: './model/deeplab_mobilenetv2_513_dilated.tflite',
+    labelsFile: './model/labels.txt',
+    inputSize: [513, 513, 3],
+    outputSize: [513, 513, 21],
+  },
+];
 
 function main(camera) {
 
-  const availableModels = [
-    deeplab257dilated,
-    deeplab224,
-
-    deeplab321dilated,
-    deeplab513decoder,
-    deeplab224dilated,
-    deeplab224trainval,
-
-    deeplab513dilated,
-    deeplab513trainval,
-    deeplab513quantized,
-    deeplab513,
-
-    deeplab321,
-    deeplab129
-  ];
   const videoElement = document.getElementById('video');
   const imageElement = document.getElementById('image');
   const inputElement = document.getElementById('input');
@@ -139,7 +35,6 @@ function main(camera) {
   const selectBackgroundButton = document.getElementById('chooseBackground');
   const clearBackgroundButton = document.getElementById('clearBackground');
   const outputCanvas = document.getElementById('output');
-  const preprocessCanvas = document.createElement('canvas');
   let clippedSize = [];
   let currentBackend = '';
   let currentModel = '';
@@ -234,7 +129,7 @@ function main(camera) {
 
 
   function checkPreferParam() {
-    if (getOS() === 'Mac OS') {
+    if (currentOS === 'Mac OS') {
       let preferValue = getPreferParam();
       if (preferValue === 'invalid') {
         console.log("Invalid prefer, prefer should be 'fast' or 'sustained', try to use WASM.");
@@ -250,7 +145,7 @@ function main(camera) {
     div.setAttribute('id', 'backendAlert');
     div.setAttribute('class', 'alert alert-warning alert-dismissible fade show');
     div.setAttribute('role', 'alert');
-    div.innerHTML = `<strong>Failed to setup ${backend} backend.</strong>`;
+    div.innerHTML = `<strong>Currently ${backend} backend doesn't support DeepLab Model.</strong>`;
     div.innerHTML += `<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>`;
     let container = document.getElementById('container');
     container.insertBefore(div, container.firstElementChild);
@@ -280,7 +175,7 @@ function main(camera) {
 
   function updateBackend() {
     if (getUrlParams('api_info') === 'true') {
-      backend.innerHTML = currentBackend === 'WebML' ? currentBackend + '/' + getNativeAPI() : currentBackend;
+      backend.innerHTML = currentBackend === 'WebML' ? currentBackend + '/' + getNativeAPI(currentPrefer) : currentBackend;
     } else {
       backend.innerHTML = currentBackend;
     }
@@ -334,6 +229,7 @@ function main(camera) {
     streaming = false;
     // renderer.deleteAll();
     utils.deleteAll();
+    removeAlertElement();
     utils.changeModelParam(newModel);
     currentPrefer = "sustained";
     progressContainer.style.display = "inline";
@@ -348,8 +244,11 @@ function main(camera) {
         if (!camera) {
           predictAndDraw(imageElement);
         } else {
-          streaming = true;
-          startPredict();
+          let res = utils.getFittedResolution(4 / 3);
+          setCamResolution(res).then(() => {
+            streaming = true;
+            startPredict();
+          });
         }
       });
     }, 10);
@@ -362,6 +261,7 @@ function main(camera) {
     streaming = false;
     // renderer.deleteAll();
     utils.deleteAll();
+    removeAlertElement();
     selectPrefer.innerHTML = 'Setting...';
     setTimeout(() => {
       utils.init(currentBackend, newPrefer).then(() => {
@@ -376,12 +276,13 @@ function main(camera) {
           startPredict();
         }
       }).catch((e) => {
-        console.warn(`Failed to change backend ${preferMap[newPrefer]}, switch back to ${preferMap[currentPrefer]}`);
+        let currentBackend = 'WebML/' + getNativeAPI(currentPrefer);
+        let nextBackend = 'WebML/' + getNativeAPI(newPrefer);
+        console.warn(`Failed to change backend ${nextBackend}, switch back to ${currentBackend}`);
         console.error(e);
-        showAlert(preferMap[newPrefer]);
         changePrefer(currentPrefer, true);
+        showAlert(nextBackend);
         updatePrefer();
-        updateModel();
         updateBackend();
       });
     }, 10);
@@ -405,32 +306,24 @@ function main(camera) {
     }
   }
 
-  function predictAndDraw(imageSource) {
-    clippedSize = utils.prepareCanvas(preprocessCanvas, imageSource);
-    // console.debug('1 upload start');
-    renderer.uploadNewTexture(imageSource, clippedSize)
-      // .then(_ => console.debug('2 upload done'));
-
-    // console.debug('3 predict start');
-    return utils.predict(preprocessCanvas).then(result => {
-      // console.debug('4 predict done, draw start');
-      let inferTime = result.time;
-      console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
-      inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
-
-      renderer.drawOutputs(result.segMap)
-        // .then((drawTime) => {
-        //   inferTimeAcc += inferTime;
-        //   drawTimeAcc += drawTime;
-        //   if (++counter === counterN) {
-        //     console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
-        //     console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
-        //     counter = inferTimeAcc = drawTimeAcc = 0;
-        //   }
-        // });
-      renderer.highlightHoverLabel(hoverPos);
-      // console.debug('5 draw done\n\n');
-    });
+  async function predictAndDraw(imageSource) {
+    clippedSize = utils.prepareInput(imageSource);
+    renderer.uploadNewTexture(imageSource, clippedSize);
+    let result = await utils.predict();
+    let inferTime = result.time;
+    console.log(`Inference time: ${inferTime.toFixed(2)} ms`);
+    inferenceTime.innerHTML = `inference time: <em style="color:green;font-weight:bloder">${inferTime.toFixed(2)} </em>ms`;
+    renderer.drawOutputs(result.segMap)
+      // .then((drawTime) => {
+      //   inferTimeAcc += inferTime;
+      //   drawTimeAcc += drawTime;
+      //   if (++counter === counterN) {
+      //     console.debug(`(${counterN} frames) Infer time: ${(inferTimeAcc / counterN).toFixed(2)} ms`);
+      //     console.debug(`(${counterN} frames) Draw time: ${(drawTimeAcc / counterN).toFixed(2)} ms`);
+      //     counter = inferTimeAcc = drawTimeAcc = 0;
+      //   }
+      // });
+    renderer.highlightHoverLabel(hoverPos);
   }
 
 
@@ -468,16 +361,16 @@ function main(camera) {
     }
   }
 
-  function getPreferParam() {
-    var parameterStr = window.location.search.substr(1);
-    var reg = new RegExp("(^|&)prefer=([^&]*)(&|$)", "i");
-    var r = parameterStr.match(reg);
-    if (r != null) {
-      return unescape(r[2]);
-    }
-  }
-  currentPrefer = getPreferParam();
-  
+  function setCamResolution(resolution) {
+    return navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: 'user' }
+    }).then((stream) => {
+      videoElement.srcObject = stream;
+      return new Promise((resolve) => {
+        // video cannot be uploaded to texture until being loaded
+        videoElement.onloadeddata = resolve;
+      });
   function getModelParam() {
     var parameterStr = window.location.search.substr(1);
     var reg = new RegExp("(^|&)model=([^&]*)(&|$)", "i");
@@ -541,16 +434,40 @@ function main(camera) {
   });
 
   // register prefers
-  if (getOS() === 'Mac OS' && currentBackend === 'WebML') {
+  if (currentBackend === 'WebML') {
     $('.prefer').css("display","inline");
-    let MPS = $('<button class="dropdown-item"/>')
-      .text('MPS')
-      .click(_ => changePrefer(preferMap['MPS']));
-    $('.preference').append(MPS);
-    let BNNS = $('<button class="dropdown-item"/>')
-      .text('BNNS')
-      .click(_ => changePrefer(preferMap['BNNS']));
-    $('.preference').append(BNNS);
+    let sustained = $('<button class="dropdown-item"/>')
+      .text('SUSTAINED_SPEED')
+      .click(_ => changePrefer('sustained'));
+    $('.preference').append(sustained);
+    if (currentOS === 'Android') {
+      let fast = $('<button class="dropdown-item"/>')
+        .text('FAST_SINGLE_ANSWER')
+        .click(_ => changePrefer('fast'));
+      $('.preference').append(fast);
+      let low = $('<button class="dropdown-item"/>')
+        .text('LOW_POWER')
+        .click(_ => changePrefer('low'));
+      $('.preference').append(low);
+    } else if (currentOS === 'Windows' || currentOS === 'Linux') {
+      let fast = $('<button class="dropdown-item" disabled />')
+        .text('FAST_SINGLE_ANSWER')
+        .click(_ => changePrefer('fast'));
+      $('.preference').append(fast);
+      let low = $('<button class="dropdown-item" disabled />')
+        .text('LOW_POWER')
+        .click(_ => changePrefer('low'));
+      $('.preference').append(low);
+    } else if (currentOS === 'Mac OS') {
+      let fast = $('<button class="dropdown-item"/>')
+        .text('FAST_SINGLE_ANSWER')
+        .click(_ => changePrefer('fast'));
+      $('.preference').append(fast);
+      let low = $('<button class="dropdown-item" disabled />')
+        .text('LOW_POWER')
+        .click(_ => changePrefer('low'));
+      $('.preference').append(low);
+    }
     if (!currentPrefer) {
       currentPrefer = "sustained";
     }
@@ -626,15 +543,8 @@ function main(camera) {
     stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
     document.body.appendChild(stats.dom);
 
-    navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        height: 192,
-        width: 257,
-        facingMode: 'environment',
-      }
-    }).then((stream) => {
-      video.srcObject = stream;
+    let res = utils.getFittedResolution(4 / 3);
+    setCamResolution(res).then(() => {
       utils.init(currentBackend, currentPrefer).then(() => {
         updateBackend();
         updateModel();
@@ -647,9 +557,7 @@ function main(camera) {
         showAlert(utils.model._backend);
         changeBackend('WASM');
       });
-    }).catch((error) => {
-      console.log('getUserMedia error: ' + error.name, error);
-    });
+    })
   }
 
 

@@ -26,7 +26,21 @@ const availableModels = [
     labelsFile: './model/labels.txt',
     inputSize: [321, 321, 3],
     outputSize: [321, 321, 21],
-  }
+  },
+  {
+    modelName: 'DeepLab 224',
+    modelFile: './model/deeplab_mobilenetv2_224.tflite',
+    labelsFile: './model/labels.txt',
+    inputSize: [224, 224, 3],
+    outputSize: [224, 224, 21],
+  },
+  {
+    modelName: 'DeepLab 321 Atrous',
+    modelFile: './model/deeplab_mobilenetv2_224_dilated.tflite',
+    labelsFile: './model/labels.txt',
+    inputSize: [224, 224, 3],
+    outputSize: [224, 224, 21],
+  },
 ];
 
 function main(camera) {

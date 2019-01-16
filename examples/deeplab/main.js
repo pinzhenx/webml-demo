@@ -35,7 +35,7 @@ const availableModels = [
     outputSize: [224, 224, 21],
   },
   {
-    modelName: 'DeepLab 321 Atrous',
+    modelName: 'DeepLab 224 Atrous',
     modelFile: './model/deeplab_mobilenetv2_224_dilated.tflite',
     labelsFile: './model/labels.txt',
     inputSize: [224, 224, 3],

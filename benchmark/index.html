@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>WebML Benchmark</title>
+    <title>WebNN Benchmark</title>
     <link rel="stylesheet" href="../examples/third_party/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <style>
       body {
@@ -45,7 +45,7 @@
     <div class="container" id="container">
       <div class="row">
         <div class="col-12">
-          <h1>WebML Benchmark</h1>
+          <h1>WebNN Benchmark</h1>
           <div>
             <h4>Model</h4>
             <select id="modelName">
@@ -88,7 +88,7 @@
             <div class="col-4">
               <button onclick="document.querySelectorAll('input[name=supportedOp]').forEach(x => x.checked = true)">Select All</button>
               <button onclick="document.querySelectorAll('input[name=supportedOp]').forEach(x => x.checked = false)">Uncheck All</button>
-              <br />
+              <br><br>
               <label><input type="checkbox" name="supportedOp" value="0"> ADD</label>
               <br />
               <label><input type="checkbox" name="supportedOp" value="10003"> ATROUS_CONV_2D</label>
@@ -123,16 +123,16 @@
               <img id="imageClassificationImage" hidden crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="../examples/image_classification/img/bee_eater.jpg">
               <img id="poseImage" hidden  crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="../examples/skeleton_detection/img/download.png">
               <img id="ssdMobileImage" hidden crossorigin="anonymous" class="img-fluid" alt="Responsive image" src="../examples/object_detection/img/image1.jpg">
-            </div>
-            <div class="col">
-            </div>
-          </div>
-          <div class="row top-margin">
-            <div class="col">
-            </div>
-            <div class="col" align="center">
-              <label id="pickButton" class="btn btn-primary">Pick Image <input type="file" id="input" accept="image/*" hidden>
-              </label>
+              <div class="row top-margin">
+                <div class="col">
+                </div>
+                <div class="col" align="center">
+                  <label id="pickButton" class="btn btn-primary">Pick Image <input type="file" id="input" accept="image/*" hidden>
+                  </label>
+                </div>
+                <div class="col">
+                </div>
+              </div>
             </div>
             <div class="col">
             </div>

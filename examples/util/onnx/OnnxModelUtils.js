@@ -205,13 +205,14 @@ function printOnnxModel(model) {
       case 'BatchNormalization': {} break;
       case 'Add': {} break;
       case 'Mul': {} break;
-      case 'Sum': {} break;
       case 'Constant': {} break;
       case 'Reshape': {} break;
+      case 'Flatten': {} break;
       case 'Gemm': {} break;
+      case 'Sum': {} break;
       case 'Unsqueeze': {} break;
       default: {
-        console.warn(`    ${node.opType} is not supported.}`);
+        throw new Error(`    ${node.opType} is not supported.`);
       }
     }
   }

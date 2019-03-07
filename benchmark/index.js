@@ -268,7 +268,7 @@ class WebMLJSBenchmark extends Benchmark {
   }
   async loadModelAndLabels(model) {
     let url = '../examples/util/';
-    let arrayBuffer = await this.loadUrl(url + model.modelFile, true);
+    let arrayBuffer = await this.loadUrl( model.modelFile, true);
     let bytes = new Uint8Array(arrayBuffer);
     let text = await this.loadUrl(url + model.labelsFile);
     return {

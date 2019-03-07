@@ -86,6 +86,9 @@
           </div>
           <div class="row top-margin">
             <div class="col-4">
+              <button onclick="document.querySelectorAll('input[name=supportedOp]').forEach(x => x.checked = true)">Select All</button>
+              <button onclick="document.querySelectorAll('input[name=supportedOp]').forEach(x => x.checked = false)">Uncheck All</button>
+              <br />
               <label><input type="checkbox" name="supportedOp" value="0"> ADD</label>
               <br />
               <label><input type="checkbox" name="supportedOp" value="10003"> ATROUS_CONV_2D</label>

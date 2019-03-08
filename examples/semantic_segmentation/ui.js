@@ -5,7 +5,6 @@ let ut = getUrlParam('t');
 let us = getUrlParam('s');
 let ud = getUrlParam('d');
 let strsearch;
-let supportedOpsList = [];
 
 if (!location.search) {
   strsearch = `?prefer=none&b=WASM&m=none&t=none&s=image&d=0`;
@@ -150,7 +149,6 @@ $(document).ready(() => {
   });
 
   $('input:radio[name=m]').click(() => {
-    supportedOpsList = Array.from(document.querySelectorAll('input[name=supportedOp]:checked')).map(x => parseInt(x.value));
     $('.alert').hide();
     let rid = $('input:radio[name="m"]:checked').attr('id');
     if (rid.indexOf('_onnx') > -1) {

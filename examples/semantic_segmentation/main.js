@@ -20,6 +20,7 @@ const counterN = 20;
 let counter = 0;
 let inferTimeAcc = 0;
 let drawTimeAcc = 0;
+
 let renderer = new Renderer(outputCanvas);
 renderer.setup();
 

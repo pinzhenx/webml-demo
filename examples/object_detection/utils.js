@@ -1,3 +1,5 @@
+let supportedOpsList = [];
+
 class Utils {
   constructor(canvas, canvasShow) {
     this.rawModel;
@@ -74,6 +76,7 @@ class Utils {
   }
 
   async init(backend, prefer) {
+    supportedOpsList = Array.from(document.querySelectorAll('input[name=supportedOp]:checked')).map(x => parseInt(x.value));
     if (!this.loaded) {
       return 'NOT_LOADED';
     }

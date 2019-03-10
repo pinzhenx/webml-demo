@@ -20,7 +20,7 @@ const onnxModelArray = [
   "inception_v2_onnx",
   "densenet_onnx"];
 
-let supportedOpsList = [];
+// let supportedOpsList = [];
 let supportedModels = [];
 supportedModels = supportedModels.concat(imageClassificationModels, objectDetectionModels, humanPoseEstimationModels);
 

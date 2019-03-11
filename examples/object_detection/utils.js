@@ -1,4 +1,5 @@
 let supportedOpsList = [];
+let eagerMode = false;
 
 class Utils {
   constructor(canvas, canvasShow) {
@@ -169,17 +170,22 @@ class Utils {
 
   async loadUrl(url, binary, progress) {
     return new Promise((resolve, reject) => {
+      if (this.outstandingRequest) {
+        this.outstandingRequest.abort();
+      }
       let request = new XMLHttpRequest();
+      this.outstandingRequest = request;
       request.open('GET', url, true);
       if (binary) {
         request.responseType = 'arraybuffer';
       }
       request.onload = function(ev) {
+        this.outstandingRequest = null;
         if (request.readyState === 4) {
           if (request.status === 200) {
-              resolve(request.response);
+            resolve(request.response);
           } else {
-              reject(new Error('Failed to load ' + url + ' status: ' + request.status));
+            reject(new Error('Failed to load ' + url + ' status: ' + request.status));
           }
         }
       };

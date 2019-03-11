@@ -1,4 +1,5 @@
 let supportedOpsList = [];
+let eagerMode = false;
 
 class Utils {
   constructor() {

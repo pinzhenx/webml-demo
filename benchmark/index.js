@@ -79,7 +79,7 @@ class Logger {
   }
   log(message) {
     console.log(message);
-    this.$dom.innerHTML += `\n${'\t'.repeat(this.indent) + message}`;
+    // this.$dom.innerHTML += `\n${'\t'.repeat(this.indent) + message}`;
   }
   error(err) {
     console.error(err);

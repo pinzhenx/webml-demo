@@ -51,25 +51,12 @@
       </div>
       <div class="row">
         <div class="col">
-          <a href="https://github.com/pinzhenx/webml-polyfill/tree/custom_ops">Source code</a>
+          <a href="https://github.com/pinzhenx/webml-polyfill/tree/separate_ops">Source code</a>
         </div>
       </div>
     </div>
     <script src="examples/third_party/jquery-3.2.1.slim.min.js"></script>
     <script src="examples/third_party/popper.min.js"></script>
     <script src="examples/third_party/bootstrap.min.js"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/webml-demo/sw.js').then(function(registration) {
-            // Registration was successful
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          }, function(err) {
-            // registration failed :(
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
-    </script>
   </body>
 </html>

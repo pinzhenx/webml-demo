@@ -82,8 +82,12 @@
               <img src='../static/img/l-tflite.png' alt='TensorFlow Lite Format' title='TensorFlow Lite Format'>
               <input type='radio' class='d-none' name='m' id='ssd_mobilenet_v1_tflite' value='ssd_mobilenet_v1_tflite' checked>
               <label id='l-ssd_mobilenet_v1_tflite' class='themodel' for='ssd_mobilenet_v1_tflite' title='SSD MobileNet v1'>SSD MobileNet v1</label>
+              <input type='radio' class='d-none' name='m' id='ssd_mobilenet_v1_quant_tflite' value='ssd_mobilenet_v1_quant_tflite' checked>
+              <label id='l-ssd_mobilenet_v1_quant_tflite' class='themodel' for='ssd_mobilenet_v1_quant_tflite' title='SSD MobileNet v1 Quant'>SSD MobileNet v1 Quant</label>
               <input type='radio' class='d-none' name='m' id='ssd_mobilenet_v2_tflite' value='ssd_mobilenet_v2_tflite' checked>
               <label id='l-ssd_mobilenet_v2_tflite' class='themodel' for='ssd_mobilenet_v2_tflite' title='SSD MobileNet v2'>SSD MobileNet v2</label>
+              <input type='radio' class='d-none' name='m' id='ssd_mobilenet_v2_quant_tflite' value='ssd_mobilenet_v2_quant_tflite' checked>
+              <label id='l-ssd_mobilenet_v2_quant_tflite' class='themodel' for='ssd_mobilenet_v2_quant_tflite' title='SSD MobileNet v2 Quant'>SSD MobileNet v2 Quant</label>
               <input type='radio' class='d-none' name='m' id='ssdlite_mobilenet_v2_tflite' value='ssdlite_mobilenet_v2_tflite' checked>
               <label id='l-ssdlite_mobilenet_v2_tflite' class='themodel' for='ssdlite_mobilenet_v2_tflite' title='SSDLite MobileNet v2'>SSDLite MobileNet v2</label>
               <input type='radio' class='d-none' name='m' id='tiny_yolov2_coco_tflite' value='tiny_yolov2_coco_tflite' checked>
@@ -93,7 +97,7 @@
             </td>
           </tr>
           <tr class='backend'>
-            <th class='text-center'>Hybrid Backend</th>
+            <th class='text-center'>Backend</th>
             <td>
               <div class='g b-polyfill'>
                 <span>Polyfill</span>
@@ -117,26 +121,6 @@
       </table>
     </div>
   </form>
-  <div class="container">
-    <div class="row small">
-      <button class="col-4" onclick="document.querySelectorAll('input[name=supportedOp]').forEach(x => x.checked = true)">Select All</button>
-      <button class="col-4" onclick="document.querySelectorAll('input[name=supportedOp]').forEach(x => x.checked = false)">Uncheck All</button>
-      <button class="col-4" onclick="utils.backend='';main(us === 'camera')">Update Backend</button>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="0"><span>ADD</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="10003"><span>ATROUS_CONV_2D</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="10004"><span>ATROUS_DEPTHWISE_CONV_2D</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="1"><span>AVERAGE_POOL_2D</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="2"><span>CONCATENATION</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="3"><span>CONV_2D</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="4"><span>DEPTHWISE_CONV_2D</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="9"><span>FULLY_CONNECTED</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="17"><span>MAX_POOL_2D</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="18"><span>MUL</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="22"><span>RESHAPE</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="23"><span>RESIZE_BILINEAR</span></label>
-      <label class="col-4"><input type="checkbox" name="supportedOp" value="25"><span>SOFTMAX</span></label>
-    </div>
-  </div>
   <section class='ic' id='ic'>
     <div class='container' id='container'>
       <a id='extra' href='#' class='mb-1 mt-3'>
@@ -315,7 +299,7 @@
   <script src="../util/decoders/Yolo2Decoder.js"></script>
   <script src='utils.js'></script>
   <script src='main.js'></script>
-  <script src='../util/uicommon.js'></script>
+  <script src='../static/js/uicommon.js'></script>
   <script src='ui.js'></script>
 </body>
 

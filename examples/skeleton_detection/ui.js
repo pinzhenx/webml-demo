@@ -1,25 +1,3 @@
-let up = getUrlParam('prefer');
-let ub = getUrlParam('b');
-let us = getUrlParam('s');
-let ud = getUrlParam('d');
-let strsearch;
-
-if (!location.search) {
-  strsearch = `?prefer=fast&b=WASM&s=image&d=0`;
-  currentBackend = 'WASM';
-  let path = location.href;
-  location.href = path + strsearch;
-}
-
-const componentToggle = () => {
-  $('#header-sticky-wrapper').slideToggle();
-  $('#query').slideToggle();
-  $('.nav-pills').slideToggle();
-  $('.github-corner').slideToggle();
-  $('footer').slideToggle();
-  $('#extra span').toggle();
-}
-
 const optionCompact = () => {
   for (s of $('#my-gui-container ul li .property-name')) {
     if(s.innerText.toLowerCase() == 'model') { s.setAttribute('title', 'Model: The larger the value, the larger the size of the layers, and more accurate the model at the cost of speed.'); }
@@ -37,32 +15,9 @@ const optionCompact = () => {
 $(document).ready(() => {
 
   if (us == 'camera') {
-    $('.nav-pills li').removeClass('active');
-    $('.nav-pills #cam').addClass('active');
-    $('#imagetab').removeClass('active');
-    $('#cameratab').addClass('active');
     currentTab = 'camera';
   } else {
-    $('.nav-pills li').removeClass('active');
-    $('.nav-pills #img').addClass('active');
-    $('#cameratab').removeClass('active');
-    $('#imagetab').addClass('active');
-    $('#fps').html('');
     currentTab = 'image';
-  }
-
-  if (hasUrlParam('b')) {
-    $('.backend input').removeAttr('checked');
-    $('.backend label').removeClass('checked');
-    $('#' + getUrlParam('b')).attr('checked', 'checked');
-    $('#l-' + getUrlParam('b')).addClass('checked');
-  }
-
-  if (hasUrlParam('prefer')) {
-    $('.prefer input').removeAttr('checked');
-    $('.prefer label').removeClass('checked');
-    $('#' + getUrlParam('prefer')).attr('checked', 'checked');
-    $('#l-' + getUrlParam('prefer')).addClass('checked');
   }
 
   $('#my-gui-container ul li select').after('<div class=\'select__arrow\'></div>');
@@ -73,34 +28,79 @@ $(document).ready(() => {
 
   optionCompact();
 
-  const updateTitle = (backend, prefer) => {
-    let currentprefertext;
-    if (prefer == 'fast') {
-      currentprefertext = 'FAST_SINGLE_ANSWER';
-    } else if (prefer == 'sustained') {
-      currentprefertext = 'SUSTAINED_SPEED';
-    } else if (prefer == 'low') {
-      currentprefertext = 'LOW_POWER';
-    }
-    $('#ictitle').html(`Skeleton Detection / ${backend} / ${currentprefertext}`);
-  }
-  updateTitle(ub, up);
+  const updateTitleSD = (backend, prefer) => {
+    let currentprefertext = {
+      fast: 'FAST_SINGLE_ANSWER',
+      sustained: 'SUSTAINED_SPEED',
+      low: 'LOW_POWER',
+      none: 'None',
+    }[prefer];
 
-  $('input:radio[name=bp], input:radio[name=bw]').click(() => {
+    let backendtext = backend;
+    if(backendtext == 'WebML') {
+      backendtext = 'WebNN';
+    }
+    if (backend !== 'WebML' && prefer !== 'none') {
+      backendtext = backend + ' + WebNN';
+    }
+    $('#ictitle').html(`Skeleton Detection / ${backendtext} / ${currentprefertext}`);
+  }
+  updateTitleSD(ub, up);
+
+  
+  $('input:radio[name=bp]').click(() => {
     $('.alert').hide();
     let polyfillId = $('input:radio[name="bp"]:checked').attr('id') || $('input:radio[name="bp"][checked="checked"]').attr('id');
-    $('.b-polyfill input').removeAttr('checked');
-    $('.b-polyfill label').removeClass('checked');
-    $('#' + polyfillId).attr('checked', 'checked');
-    $('#l-' + polyfillId).addClass('checked');
 
-    let webnnId = $('input:radio[name="bw"]:checked').attr('id') || $('input:radio[name="bw"][checked="checked"]').attr('id');
-    $('.b-webnn input').removeAttr('checked');
-    $('.b-webnn label').removeClass('checked');
-    $('#' + webnnId).attr('checked', 'checked');
-    $('#l-' + webnnId).addClass('checked');
+    if (polyfillId !== currentBackend) {
+      $('.b-polyfill input').removeAttr('checked');
+      $('.b-polyfill label').removeClass('checked');
+      $('#' + polyfillId).attr('checked', 'checked');
+      $('#l-' + polyfillId).addClass('checked');
+    } else if (currentPrefer === 'none') {
+      showAlert('Select at least one backend');
+      return;
+    } else {
+      $('.b-polyfill input').removeAttr('checked');
+      $('.b-polyfill label').removeClass('checked');
+      polyfillId = 'WebML';
+    }
 
     currentBackend = polyfillId;
+
+    if(currentBackend === 'none' || currentBackend === '') {
+      $('#option').hide();
+    } else {
+      $('#option').show();
+      optionCompact();
+    }
+
+    updateTitleSD(currentBackend, currentPrefer);
+    strsearch = `?prefer=${currentPrefer}&b=${currentBackend}&s=${us}&d=${ud}`;
+    window.history.pushState(null, null, strsearch);
+
+    main(us === 'camera');
+  });
+
+  $('input:radio[name=bw]').click(() => {
+    $('.alert').hide();
+
+    let webnnId = $('input:radio[name="bw"]:checked').attr('id') || $('input:radio[name="bw"][checked="checked"]').attr('id');
+
+    if (webnnId !== currentPrefer) {
+      $('.b-webnn input').removeAttr('checked');
+      $('.b-webnn label').removeClass('checked');
+      $('#' + webnnId).attr('checked', 'checked');
+      $('#l-' + webnnId).addClass('checked');
+    } else if (currentBackend === 'WebML') {
+      showAlert('Select at least one backend');
+      return;
+    } else {
+      $('.b-webnn input').removeAttr('checked');
+      $('.b-webnn label').removeClass('checked');
+      webnnId = 'none';
+    }
+
     currentPrefer = webnnId;
 
     if(currentBackend === 'none' || currentBackend === '') {
@@ -110,7 +110,7 @@ $(document).ready(() => {
       optionCompact();
     }
 
-    updateTitle(currentBackend, currentPrefer);
+    updateTitleSD(currentBackend, currentPrefer);
     strsearch = `?prefer=${currentPrefer}&b=${currentBackend}&s=${us}&d=${ud}`;
     window.history.pushState(null, null, strsearch);
 
@@ -140,12 +140,6 @@ $(document).ready(() => {
 
 $(document).ready(() => {
   $('#img').click(() => {
-    $('.alert').hide();
-    $('#fps').html('');
-    $('ul.nav-pills li').removeClass('active');
-    $('ul.nav-pills #img').addClass('active');
-    $('#imagetab').addClass('active');
-    $('#cameratab').removeClass('active');
     us = 'image';
     strsearch = `?prefer=${up}&b=${currentBackend}&s=${us}&d=${ud}`;
     window.history.pushState(null, null, strsearch);
@@ -155,15 +149,10 @@ $(document).ready(() => {
       return;
     }
     currentTab = 'image';
-    main(false);
+    updateScenario(false);
   });
 
   $('#cam').click(() => {
-    $('.alert').hide();
-    $('ul.nav-pills li').removeClass('active');
-    $('ul.nav-pills #cam').addClass('active');
-    $('#cameratab').addClass('active');
-    $('#imagetab').removeClass('active');
     us = 'camera';
     strsearch = `?prefer=${up}&b=${currentBackend}&s=${us}&d=${ud}`;
     window.history.pushState(null, null, strsearch);
@@ -173,60 +162,21 @@ $(document).ready(() => {
       return;
     }
     currentTab = 'camera';
-    main(true);
+    updateScenario(true);
   });
 
   $('#fullscreen i svg').click(() => {
-    $('#fullscreen i').toggle();
-    toggleFullScreen();
     $('#canvasvideo').toggleClass('fullscreen');
-    $('#overlay').toggleClass('video-overlay');
-    $('#fps').toggleClass('fullscreen');
-    $('#fullscreen i').toggleClass('fullscreen');
-    $('#ictitle').toggleClass('fullscreen');
-    $('#inference').toggleClass('fullscreen');
     $('#my-gui-container').toggleClass('fullscreen');
   });
 
 });
 
-const showProgress = async (text) => {
-  $('#progressmodel').show();
-  await $('#progressstep').html(text);
-  $('.shoulddisplay').hide();
-  $('.icdisplay').hide();
-  $('#resulterror').hide();
-}
-
-const showResults = () => {
-  $('#progressmodel').hide();
-  $('.icdisplay').fadeIn();
-  $('.shoulddisplay').fadeIn();
-  $('#resulterror').hide();
-}
-
-const showError = (title, description) => {
-  $('#progressmodel').hide();
-  $('.icdisplay').hide();
-  $('.shoulddisplay').hide();
-  $('#resulterror').fadeIn();
-  if (title && description) {
-    $('.errortitle').html(title);
-    $('.errordescription').html(description);
-  } else {
-    $('.errortitle').html('Prediction Failed');
-    $('.errordescription').html('Please check error log for more details');
-  }
-}
-
-const updateLoading = (loadedSize, totalSize, percentComplete) => {
+const updateLoadingSD = (loadedSize, totalSize, percentComplete) => {
   $('.loading-page .counter h1').html(`${loadedSize}/${totalSize} ${percentComplete}%`);
 }
 
 $(window).load(() => {
-  if (ud != '0') {
-    componentToggle();
-  }
   if(currentBackend === 'none' || currentBackend === '') {
     showError('No backend selected', 'Please select a backend to start prediction.');
     $('#option').hide();

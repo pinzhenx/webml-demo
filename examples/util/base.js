@@ -31,6 +31,17 @@ const imageClassificationModels = [{
   intro: 'An efficient Convolutional Neural Networks for Mobile Vision Applications.',
   paperUrl: 'https://arxiv.org/pdf/1704.04861.pdf'
 }, {
+  modelName: 'Mobilenet v1 Quant(TFLite)',
+  modelFormatName: 'mobilenet_v1_quant_tflite',
+  isQuantized: true,
+  modelSize: '4.3MB',
+  inputSize: [224, 224, 3],
+  outputSize: 1001,
+  modelFile: 'https://wenzhao-xiang.github.io/intel/webml-examples/examples/image_classification/model/mobilenet_v1_1.0_224_quant.tflite',
+  labelsFile: '../image_classification/model/labels1001.txt',
+  intro: 'Quantized version of Mobilenet v1',
+  paperUrl: 'https://arxiv.org/pdf/1712.05877.pdf'
+}, {
   modelName: 'Mobilenet v2 (TFLite)',
   modelFormatName: 'mobilenet_v2_tflite',
   modelSize: '14.0MB',
@@ -44,6 +55,20 @@ const imageClassificationModels = [{
   },
   intro: 'MobileNetV2 improves the state of the art performance of mobile models.',
   paperUrl: 'https://arxiv.org/abs/1801.04381'
+}, {
+  modelName: 'Mobilenet v2 Quant(TFLite)',
+  modelFormatName: 'mobilenet_v2_quant_tflite',
+  isQuantized: true,
+  modelSize: '6.9MB',
+  inputSize: [224, 224, 3],
+  outputSize: 1001,
+  modelFile: 'https://wenzhao-xiang.github.io/intel/webml-examples/examples/image_classification/model/mobilenet_v2_1.0_224_quant.tflite',
+  labelsFile: '../image_classification/model/labels1001.txt',
+  postOptions: {
+    softmax: true,
+  },
+  intro: 'Quantized version of Mobilenet v2',
+  paperUrl: 'https://arxiv.org/abs/1806.08342'
 }, {
   modelName: 'Inception v3 (TFLite)',
   modelFormatName: 'inception_v3_tflite',
@@ -232,6 +257,21 @@ const objectDetectionModels = [{
   intro: 'SSD (Single Shot MultiBox Detector) is an unified framework for object detection with a single network. Loading SSD MobileNet model (converted from Tensorflow SSD MobileNet model) trained by COCO in TensorFlow Lite format, constructs and inferences it by WebML API.',
   paperUrl: 'https://arxiv.org/abs/1803.08225'
 }, {
+  modelName: 'SSD MobileNet v1 Quant(TFLite)',
+  modelFormatName: 'ssd_mobilenet_v1_quant_tflite',
+  isQuantized: true,
+  modelSize: '6.9MB',
+  modelFile: 'https://wenzhao-xiang.github.io/intel/webml-examples/examples/object_detection/model/ssd_mobilenet_v1_quant.tflite',
+  labelsFile: '../object_detection/model/coco_classes.txt',
+  type: 'SSD',
+  box_size: 4,
+  num_classes: 91,
+  num_boxes: 1083 + 600 + 150 + 54 + 24 + 6,
+  margin: [1, 1, 1, 1],
+  inputSize: [300, 300, 3],
+  intro: 'Quantized version of SSD Mobilenet v1',
+  paperUrl: 'https://arxiv.org/pdf/1712.05877.pdf'
+}, {
   modelName: 'SSD MobileNet v2 (TFLite)',
   modelFormatName: 'ssd_mobilenet_v2_tflite',
   modelSize: '67.3MB',
@@ -249,6 +289,21 @@ const objectDetectionModels = [{
   },
   intro: 'SSD MobileNet V2 is slower than SSD Mobilenet V1, but has higher accuracy.',
   paperUrl: 'https://arxiv.org/abs/1801.04381'
+}, {
+  modelName: 'SSD MobileNet v2 Quant(TFLite)',
+  modelFormatName: 'ssd_mobilenet_v2_quant_tflite',
+  isQuantized: true,
+  modelSize: '6.2MB',
+  modelFile: 'https://wenzhao-xiang.github.io/intel/webml-examples/examples/object_detection/model/ssd_mobilenet_v2_quant.tflite',
+  labelsFile: '../object_detection/model/coco_classes.txt',
+  type: 'SSD',
+  box_size: 4,
+  num_classes: 91,
+  num_boxes: 1083 + 600 + 150 + 54 + 24 + 6,
+  margin: [1, 1, 1, 1],
+  inputSize: [300, 300, 3],
+  intro: 'Quantized version of SSD Mobilenet v2',
+  paperUrl: 'https://arxiv.org/abs/1806.08342'
 }, {
   modelName: 'SSDLite MobileNet v2 (TFLite)',
   modelFormatName: 'ssdlite_mobilenet_v2_tflite',
@@ -455,8 +510,12 @@ const getOS = () => {
 }
 
 const currentOS = getOS();
+let eager = false;
+let supportedOps = new Set();
 
 const getNativeAPI = (preferString) => {
+  // if you are going to modify the backend name, please change the
+  // `backendEnums` in the `getDefaultSupportedOps` below
   const apiMapping = {
     'Android': {
       'sustained': 'NN',
@@ -478,6 +537,40 @@ const getNativeAPI = (preferString) => {
   };
   return apiMapping[currentOS][preferString];
 }
+
+const getDefaultSupportedOps = (backend, prefer) => {
+  if (prefer === 'none' && backend !== 'WebML') {
+    // if `prefer` is none, all ops should only run in polyfill
+    return new Set();
+  }
+
+  // backend enums are defined in the `getNativeAPI` above
+  const backendEnums =        { NN: 0,    MPS: 1,  BNNS: 2,  clDNN: 3, mklDNN: 4 };
+  const supportedTable =
+  { ADD:                      [ true,     true,    true,     true,     false ],
+    ATROUS_CONV_2D:           [ false,    false,   false,    true,     true  ],
+    ATROUS_DEPTHWISE_CONV_2D: [ false,    false,   false,    true,     true  ],
+    AVERAGE_POOL_2D:          [ true,     true,    true,     true,     true  ],
+    CONCATENATION:            [ true,     true,    true,     true,     true  ],
+    CONV_2D:                  [ true,     true,    true,     true,     true  ],
+    DEPTHWISE_CONV_2D:        [ true,     true,    false,    true,     true  ],
+    FULLY_CONNECTED:          [ true,     true,    true,     true,     true  ],
+    MAX_POOL_2D:              [ true,     true,    true,     true,     true  ],
+    MUL:                      [ true,     true,    true,     true,     false ],
+    RESHAPE:                  [ true,     true,    true,     true,     true  ],
+    RESIZE_BILINEAR:          [ true,     false,   true,     true,     false ],
+    SOFTMAX:                  [ true,     true,    true,     true,     true  ]};
+
+  const nn = navigator.ml.getNeuralNetworkContext();
+  const supportedOps = new Set();
+  const backendId = backendEnums[getNativeAPI(prefer)];
+  for (const opName in supportedTable) {
+    if (supportedTable[opName][backendId]) {
+      supportedOps.add(nn[opName]);
+    }
+  }
+  return supportedOps;
+};
 
 const getUrlParams = (prop) => {
   var params = {};
@@ -527,21 +620,17 @@ const getPrefer = (backend) => {
 const getPreferCode = (backend, prefer) => {
   let preferCode;
   let nn = navigator.ml.getNeuralNetworkContext();
-  if (backend === 'WASM') {
-    preferCode = nn.PREFER_FAST_SINGLE_ANSWER;
-  } else if (backend === 'WebGL') {
+  if (prefer === 'sustained') {
     preferCode = nn.PREFER_SUSTAINED_SPEED;
-  } else if (backend === 'WebML') {
-    if (prefer === 'sustained') {
-      preferCode = nn.PREFER_SUSTAINED_SPEED;
-    } else if (prefer === 'fast') {
-      preferCode = nn.PREFER_FAST_SINGLE_ANSWER;
-    } else if (prefer === 'low') {
-      preferCode = nn.PREFER_LOW_POWER;
-    }
+  } else if (prefer === 'fast') {
+    preferCode = nn.PREFER_FAST_SINGLE_ANSWER;
+  } else if (prefer === 'low') {
+    preferCode = nn.PREFER_LOW_POWER;
+  } else {
+    preferCode = nn.PREFER_FAST_SINGLE_ANSWER;
   }
   return preferCode;
-}
+};
 
 const getSearchParamsPrefer = () => {
   let searchParams = new URLSearchParams(location.search);

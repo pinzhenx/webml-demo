@@ -1,6 +1,3 @@
-let supportedOpsList = [];
-let eagerMode = false;
-
 /**
  * @license
  * Copyright 2018 Google Inc. All Rights Reserved.
@@ -94,11 +91,11 @@ class Utils{
     this._maxDetection;
     this._type;
     this.initialized = false;
+    this.resolveGetRequiredOps = null;
     this._cacheMap = new Map();
   }
   
   async init(backend, prefer, inputSize) {
-    supportedOpsList = Array.from(document.querySelectorAll('input[name=supportedOp]:checked')).map(x => parseInt(x.value));
     this.initialized = false;
     // single input
     this._version = guiState.model;
@@ -134,7 +131,31 @@ class Utils{
     this.model = new PoseNet(this.modelArch, Number(this._version), this._useAtrousConv, Number(this._outputStride),
                              this.scaleInputSize, this._type, this._cacheMap, backend, prefer);
     result = await this.model.createCompiledModel();
+
+    if (this.resolveGetRequiredOps) {
+      this.resolveGetRequiredOps(this.model.getRequiredOps());
+    }
+
     this.initialized = true;
+  }
+
+  async getRequiredOps() {
+    if (!this.initialized) {
+      return new Promise(resolve => this.resolveGetRequiredOps = resolve);
+    } else {
+      return this.model.getRequiredOps();
+    }
+  }
+
+  getSubgraphsSummary() {
+    if (this.model._backend !== 'WebML' &&
+        this.model &&
+        this.model._compilation &&
+        this.model._compilation._preparedModel) {
+      return this.model._compilation._preparedModel.getSubgraphsSummary();
+    } else {
+      return [];
+    }
   }
 
   async predict(scaleCanvas, type) {

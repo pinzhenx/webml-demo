@@ -58,5 +58,11 @@
     <script src="examples/third_party/jquery-3.2.1.slim.min.js"></script>
     <script src="examples/third_party/popper.min.js"></script>
     <script src="examples/third_party/bootstrap.min.js"></script>
+    <script>
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for(let registration of registrations) {
+      registration.unregister()
+    }});
+  </script>
   </body>
 </html>

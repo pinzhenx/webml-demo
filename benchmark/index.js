@@ -1,7 +1,9 @@
 'use strict';
 const tfliteModelArray = [
   "mobilenet_v1_tflite",
+  "mobilenet_v1_quant_tflite",
   "mobilenet_v2_tflite",
+  "mobilenet_v2_quant_tflite",
   "inception_v3_tflite",
   "inception_v4_tflite",
   "squeezenet_tflite",
@@ -9,7 +11,9 @@ const tfliteModelArray = [
 
 const ssdModelArray = [
   "ssd_mobilenet_v1_tflite",
+  "ssd_mobilenet_v1_quant_tflite",
   "ssd_mobilenet_v2_tflite",
+  "ssd_mobilenet_v2_quant_tflite",
   "ssdlite_mobilenet_v2_tflite",
   "tiny_yolov2_coco_tflite",
   "tiny_yolov2_voc_tflite"];
@@ -31,6 +35,8 @@ const segmentationModelArray = [
   'deeplab_mobilenet_v2_321_atrous_tflite',
   'deeplab_mobilenet_v2_513_tflite',
   'deeplab_mobilenet_v2_513_atrous_tflite',
+  'deeplab_mobilenet_v2_513os16_tflite',
+  'deeplab_mobilenet_v2_513os16argmax_tflite',
 ];
 
 let supportedModels = [];
@@ -117,7 +123,8 @@ class Benchmark {
     let results = await this.executeAsync();
     await this.finalizeAsync();
     return {"computeResults": this.summarize(results.computeResults),
-            "decodeResults": this.summarize(results.decodeResults)};
+            "decodeResults": this.summarize(results.decodeResults),
+            "profilingResults": this.summarizeProf(results.profilingResults)};
   }
   /**
    * Setup model
@@ -155,6 +162,7 @@ class Benchmark {
         await new Promise(resolve => requestAnimationFrame(resolve));
         let tStart = performance.now();
         await this.executeSingleAsync();
+        this.deQuantizeParams = this.model._deQuantizeParams;
         let elapsedTime = performance.now() - tStart;
         this.printPredictResult();
         computeResults.push(elapsedTime);
@@ -191,6 +199,7 @@ class Benchmark {
       imageElement.src = poseCanvas.toDataURL();
     } else if (ssdModelArray.indexOf(modelName) !== -1) {
       if (this.ssdModelType === 'SSD') {
+        let outputBoxTensor, outputClassScoresTensor;
         for (let i = 0; i < this.configuration.iteration; i++) {
           this.onExecuteSingle(i);
           await new Promise(resolve => requestAnimationFrame(resolve));
@@ -198,14 +207,19 @@ class Benchmark {
           await this.executeSingleAsyncSSDMN();
           let elapsedTime = performance.now() - tStart;
           computeResults.push(elapsedTime);
-
+          if (this.isQuantized) {
+            [outputBoxTensor, outputClassScoresTensor] = this.deQuantizeOutputTensor(this.outputBoxTensor, this.outputClassScoresTensor, this.model._deQuantizeParams);
+          } else {
+            outputBoxTensor = this.outputBoxTensor;
+            outputClassScoresTensor = this.outputClassScoresTensor;
+          }
           let dstart = performance.now();
-          decodeOutputBoxTensor({}, this.outputBoxTensor, this.anchors);
+          decodeOutputBoxTensor({}, outputBoxTensor, this.anchors);
           let decodeTime = performance.now() - dstart;
           console.log("Decode time:" + decodeTime);
           decodeResults.push(decodeTime);
         }
-        let [totalDetections, boxesList, scoresList, classesList] = NMS({}, this.outputBoxTensor, this.outputClassScoresTensor);
+        let [totalDetections, boxesList, scoresList, classesList] = NMS({}, outputBoxTensor, outputClassScoresTensor);
         poseCanvas.setAttribute("width", imageElement.width);
         poseCanvas.setAttribute("height", imageElement.height);
         visualize(poseCanvas, totalDetections, imageElement, boxesList, scoresList, classesList, this.labels);
@@ -247,7 +261,6 @@ class Benchmark {
       let scaledWidth = Math.floor(imWidth / resizeRatio);
       let scaledHeight = Math.floor(imHeight / resizeRatio);
       let renderer = new Renderer(segCanvas);
-      renderer.zoom = resizeRatio;
       renderer.setup();
       renderer.uploadNewTexture(imageElement, [scaledWidth, scaledHeight]);
       renderer.drawOutputs({
@@ -258,9 +271,14 @@ class Benchmark {
       bkPoseImageSrc = imageElement.src;
       imageElement.src = segCanvas.toDataURL();
     }
-    if (this.model._backend !== 'WebML')
-      this.model._compilation._preparedModel.dumpProfilingResults();
-    return {"computeResults": computeResults, "decodeResults": decodeResults};
+    const profilingResults = this.model._backend === 'WebML' ?
+        null :
+        this.model._compilation._preparedModel.dumpProfilingResults();
+    return {
+      "computeResults": computeResults,
+      "decodeResults": decodeResults,
+      "profilingResults": profilingResults,
+    };
   }
   /**
    * Execute model
@@ -311,6 +329,30 @@ class Benchmark {
       return null;
     }
   }
+  summarizeProf(results) {
+    const lines = [];
+    if (!results) {
+      return lines;
+    }
+    lines.push(`Execution calls: ${results.epochs} (omitted ${results.warmUpRuns} warm-up runs)`);
+    lines.push(`Supported Ops: ${results.supportedOps.join(', ') || 'None'}`);
+    lines.push(`Mode: ${results.mode}`);
+
+    let polyfillTime = 0;
+    let webnnTime = 0;
+    for (const t of results.timings) {
+      lines.push(`${t.elpased.toFixed(8).slice(0, 7)} ms\t- (${t.backend}) ${t.summary}`);
+      if (t.backend === 'WebNN') {
+        webnnTime += t.elpased;
+      } else {
+        polyfillTime += t.elpased;
+      }
+    }
+    lines.push(`Polyfill time: ${polyfillTime.toFixed(5)} ms`);
+    lines.push(`WebNN time: ${webnnTime.toFixed(5)} ms`);
+    lines.push(`Sum: ${(polyfillTime + webnnTime).toFixed(5)} ms`);
+    return lines;
+  }
   onExecuteSingle(iteration) {}
 }
 class WebMLJSBenchmark extends Benchmark {
@@ -336,10 +378,15 @@ class WebMLJSBenchmark extends Benchmark {
     //only for ssd mobilenet
     this.outputBoxTensor = null;
     this.outputClassScoresTensor = null;
+    this.deQuantizedOutputBoxTensor = null;
+    this.deQuantizedOutputClassScoresTensor = null;
+    this.deQuantizeParams = null;
     this.anchors = null;
     this.ssdModelType;
     this.ssdModelMargin;
     this.numClasses;
+
+    this.isQuantized = false;
 
     this.model = null;
     this.labels = null;
@@ -347,7 +394,7 @@ class WebMLJSBenchmark extends Benchmark {
   }
   async loadModelAndLabels(model) {
     let url = '../examples/util/';
-    let arrayBuffer = await this.loadUrl(model.modelFile, true);
+    let arrayBuffer = await this.loadUrl(url + model.modelFile, true);
     let bytes = new Uint8Array(arrayBuffer);
     let text = await this.loadUrl(url + model.labelsFile);
     return {
@@ -377,6 +424,7 @@ class WebMLJSBenchmark extends Benchmark {
   async setInputOutput() {
     const configModelName = this.configuration.modelName;
     const currentModel = getModelDicItem(configModelName);
+
     let width = currentModel.inputSize[1];
     let height = currentModel.inputSize[0];
     let dwidth;
@@ -390,9 +438,18 @@ class WebMLJSBenchmark extends Benchmark {
     const imageChannels = 4; // RGBA
     let drawContent;
 
+    this.isQuantized = currentModel.isQuantized || false;
+    let typedArray;
+
+    if (this.isQuantized) {
+      typedArray = Uint8Array;
+    } else {
+      typedArray = Float32Array;
+    }
+
     if (tfliteModelArray.indexOf(configModelName) !== -1 || onnxModelArray.indexOf(configModelName) !== -1) {
-      this.inputTensor = new Float32Array(currentModel.inputSize.reduce((a, b) => a * b));
-      this.outputTensor = new Float32Array(currentModel.outputSize);
+      this.inputTensor = new typedArray(currentModel.inputSize.reduce((a, b) => a * b));
+      this.outputTensor = new typedArray(currentModel.outputSize);
       drawContent = imageElement;
       dwidth = width;
       dheight = height;
@@ -401,20 +458,25 @@ class WebMLJSBenchmark extends Benchmark {
         // reset for rerun with same image
         imageElement.src = bkPoseImageSrc;
       }
-      this.inputTensor = new Float32Array(currentModel.inputSize.reduce((a, b) => a * b));
       this.outputTensor = [];
       this.ssdModelType = currentModel.type;
       this.ssdModelMargin = currentModel.margin;
       this.numClasses = currentModel.num_classes;
       if (currentModel.type === 'SSD') {
-        this.outputBoxTensor = new Float32Array(currentModel.num_boxes * currentModel.box_size);
-        this.outputClassScoresTensor = new Float32Array(currentModel.num_boxes * currentModel.num_classes);
+        if (this.isQuantized) {
+          this.deQuantizedOutputBoxTensor = new Float32Array(currentModel.num_boxes * currentModel.box_size);
+          this.deQuantizedOutputClassScoresTensor = new Float32Array(currentModel.num_boxes * currentModel.num_classes);
+        }
+        this.inputTensor = new typedArray(currentModel.inputSize.reduce((a, b) => a * b));
+        this.outputBoxTensor = new typedArray(currentModel.num_boxes * currentModel.box_size);
+        this.outputClassScoresTensor = new typedArray(currentModel.num_boxes * currentModel.num_classes);
         this.prepareoutputTensor(this.outputBoxTensor, this.outputClassScoresTensor);
         this.anchors = generateAnchors({});
       } else {
         // YOLO
+        this.inputTensor = new typedArray(currentModel.inputSize.reduce((a, b) => a * b));
         this.anchors = currentModel.anchors;
-        this.outputTensor = [new Float32Array(currentModel.outputSize)]
+        this.outputTensor = [new typedArray(currentModel.outputSize)]
       }
       drawContent = imageElement;
       dwidth = width;
@@ -424,8 +486,8 @@ class WebMLJSBenchmark extends Benchmark {
         // reset for rerun with same image
         imageElement.src = bkPoseImageSrc;
       }
-      this.inputTensor = new Float32Array(currentModel.inputSize.reduce((a, b) => a * b));
-      this.outputTensor = new Float32Array(currentModel.outputSize.reduce((a, b) => a * b));
+      this.inputTensor = new typedArray(currentModel.inputSize.reduce((a, b) => a * b));
+      this.outputTensor = new typedArray(currentModel.outputSize.reduce((a, b) => a * b));
       this.inputSize = currentModel.inputSize;
       this.outputSize = currentModel.outputSize;
       height = this.inputSize[0];
@@ -455,7 +517,7 @@ class WebMLJSBenchmark extends Benchmark {
 
       this.scaleWidth = getValidResolution(this.scaleFactor, width, this.outputStride);
       this.scaleHeight = getValidResolution(this.scaleFactor, height, this.outputStride);
-      this.inputTensor = new Float32Array(this.scaleWidth * this.scaleHeight * channels);
+      this.inputTensor = new typedArray(this.scaleWidth * this.scaleHeight * channels);
       this.scaleInputSize = [1, this.scaleWidth, this.scaleHeight, channels];
 
       let HEATMAP_TENSOR_SIZE;
@@ -465,8 +527,8 @@ class WebMLJSBenchmark extends Benchmark {
         HEATMAP_TENSOR_SIZE = product(toHeatmapsize(this.scaleInputSize, this.outputStride));
       }
       let OFFSET_TENSOR_SIZE = HEATMAP_TENSOR_SIZE * 2;
-      this.heatmapTensor = new Float32Array(HEATMAP_TENSOR_SIZE);
-      this.offsetTensor = new Float32Array(OFFSET_TENSOR_SIZE);
+      this.heatmapTensor = new typedArray(HEATMAP_TENSOR_SIZE);
+      this.offsetTensor = new typedArray(OFFSET_TENSOR_SIZE);
       // prepare canvas for predict
       let poseCanvasPredict = document.getElementById('poseCanvasPredict');
       drawContent = await this.loadImage(poseCanvasPredict, width, height);
@@ -526,6 +588,37 @@ class WebMLJSBenchmark extends Benchmark {
       boxOffset += boxLen * outH[i];
       classOffset += classLen * outH[i];
     }
+  }
+
+  deQuantizeOutputTensor(outputBoxTensor, outputClassScoresTensor, quantizedParams) {
+    const outH = [1083, 600, 150, 54, 24, 6];
+    const boxLen = 4;
+    const classLen = 91;
+    let boxOffset = 0;
+    let classOffset = 0;
+    let boxTensor, classTensor;
+    let boxScale, boxZeroPoint, classScale, classZeroPoint;
+    let dqBoxOffset = 0;
+    let dqClassOffset = 0;
+    for (let i = 0; i < 6; ++i) {
+      boxTensor = outputBoxTensor.subarray(boxOffset, boxOffset + boxLen * outH[i]);
+      classTensor = outputClassScoresTensor.subarray(classOffset, classOffset + classLen * outH[i]);
+      boxScale = quantizedParams[2 * i].scale;
+      boxZeroPoint = quantizedParams[2 * i].zeroPoint;
+      classScale = quantizedParams[2 * i + 1].scale;
+      classZeroPoint = quantizedParams[2 * i + 1].zeroPoint;
+      for (let j = 0; j < boxTensor.length; ++j) {
+        this.deQuantizedOutputBoxTensor[dqBoxOffset] = boxScale* (boxTensor[j] - boxZeroPoint);
+        ++dqBoxOffset;
+      }
+      for (let j = 0; j < classTensor.length; ++j) {
+        this.deQuantizedOutputClassScoresTensor[dqClassOffset] = classScale * (classTensor[j] - classZeroPoint);
+        ++dqClassOffset;
+      }
+      boxOffset += boxLen * outH[i];
+      classOffset += classLen * outH[i];
+    }
+    return [this.deQuantizedOutputBoxTensor, this.deQuantizedOutputClassScoresTensor];
   }
 
   async setupAsync() {
@@ -609,9 +702,13 @@ class WebMLJSBenchmark extends Benchmark {
       return a[0] < b[0] ? -1 : 1;
     });
     sorted.reverse();
-    let classes = [];
+    let prob;
     for (let i = 0; i < 3; ++i) {
-      let prob = sorted[i][0];
+      if (this.isQuantized) {
+        prob = this.deQuantizeParams[0].scale * (sorted[i][0] - this.deQuantizeParams[0].zeroPoint);
+      } else {
+        prob = sorted[i][0];
+      }
       let index = sorted[i][1];
       console.log(`label: ${this.labels[index]}, probability: ${(prob * 100).toFixed(2)}%`);
     }
@@ -645,6 +742,9 @@ class WebMLJSBenchmark extends Benchmark {
     this.offsetTensor  = null;
     this.outputBoxTensor = null;
     this.outputClassScoresTensor = null;
+    this.deQuantizedOutputBoxTensor = null;
+    this.deQuantizedOutputClassScoresTensor = null;
+    this.deQuantizeParams = null;
     this.anchors = null;
     this.model = null;
     this.labels = null;
@@ -664,7 +764,6 @@ async function run() {
   inputElement.setAttribute('class', 'disabled');
   pickBtnEelement.setAttribute('class', 'btn btn-primary disabled');
   let logger = new Logger(document.querySelector('#log'));
-  window.console.debug = (msg) => logger.log(msg);
   logger.group('Benchmark');
   try {
     let configuration = JSON.parse(document.querySelector('#configurations').selectedOptions[0].value);
@@ -700,6 +799,11 @@ async function run() {
     benchmark.onExecuteSingle = (i => logger.log(`Iteration: ${i + 1} / ${configuration.iteration}`));
     let summary = await benchmark.runAsync(configuration);
     logger.groupEnd();
+    if (summary.profilingResults.length) {
+      logger.group('Profiling');
+      summary.profilingResults.forEach((line) => logger.log(line));
+      logger.groupEnd();
+    }
     logger.group('Result');
     logger.log(`Inference Time: <em style="color:green;font-weight:bolder;">${summary.computeResults.mean.toFixed(2)}+-${summary.computeResults.std.toFixed(2)}</em> [ms]`);
     if (summary.decodeResults !== null) {

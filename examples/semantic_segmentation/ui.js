@@ -8,22 +8,11 @@ const buttonUI = (camera = false) => {
   }
 }
 
-const setFullScreenIconPosition = (modelname) => {
-  let svgstyle = 'p' + modelname.replace('deeplab_mobilenet_v2_', '').replace('_tflite', '').replace(/_/g, '').replace('atrous', '');
-  // $('#semanticsegmentation #fullscreen i svg').removeClass('p224').removeClass('p257').removeClass('p321').removeClass('p513').addClass(svgstyle);
-  $('#semanticsegmentation #fullscreen i svg').addClass('p513');
-}
-
 let ssmodel = () => {
   return um.replace('mobilenet', '').replace('v2', '').replace(/_/g, ' ');
 }
 
 $(document).ready(() => {
-
-  if (hasUrlParam('m') && hasUrlParam('t')) {
-    setFullScreenIconPosition(um);
-  }
-
   updateTitle('Semantic Segmentation', ub, up, ssmodel(), ut);
 
   $('input:radio[name=bp]').click(() => {
@@ -35,12 +24,20 @@ $(document).ready(() => {
   });
 
   $('input:radio[name=m]').click(() => {
-    let rid = $('input:radio[name="m"]:checked').attr('id');
-    if(rid) {
-      setFullScreenIconPosition(rid);
-    }
     updateTitle('Semantic Segmentation', currentBackend, currentPrefer, ssmodel(), `${ut}`);
+    $('.offload').hide();
   });
+ 
+  inputElement.addEventListener('change', (e) => {
+    let files = e.target.files;
+    if (files.length > 0) {
+      imageElement.src = URL.createObjectURL(files[0]);
+    }
+  }, false);
+
+  imageElement.addEventListener('load', () => {
+    predictAndDraw(imageElement, false);
+  }, false);
  
 });
 
@@ -54,20 +51,11 @@ $(document).ready(() => {
   });
 
   $('#fullscreen i svg').click(() => {
-    $('#canvasvideo').toggleClass('fullscreen');
-    $('.zoom-wrapper').toggle();
-    $('#labelitem').toggle();
+    $('#canvasvideo').toggleClass('fullscreen'); 
+    $('.zoom-wrapper').toggle(); 
   });
 
 });
-
-const showResultsSS = () => {
-  $('#progressmodel').hide();
-  $('.icdisplay').show();
-  $('.shoulddisplay').show();
-  $('#resulterror').hide();
-  buttonUI(us === 'camera');
-}
 
 const zoomSlider = document.getElementById('zoomSlider');
 const blurSlider = document.getElementById('blurSlider');
@@ -98,46 +86,8 @@ $(window).load(() => {
     renderer.bgColor = [color.rgb.r, color.rgb.g, color.rgb.b];
   });
 
-  zoomSlider.value = renderer.zoom * 100;
-
-  const doubleZoomLevel = (modelname) => {
-    let doublezoomlevel = modelname.replace('deeplab_mobilenet_v2_', '').replace('_tflite', '').replace(/_/g, '').replace('atrous', '');
-    if (doublezoomlevel) {
-      switch (parseInt(doublezoomlevel)) {
-        case 513:
-          renderer.zoom = 1;
-          zoomSlider.value = 100;
-          break;
-        case 224:
-          renderer.zoom = 2.3;
-          zoomSlider.value = 2.3;
-          break;
-        case 257:
-          renderer.zoom = 2;
-          zoomSlider.value = 2;
-          break;
-        case 321:
-          renderer.zoom = 1.6;
-          zoomSlider.value = 1.6;
-          break;
-        default:
-          renderer.zoom = 1;
-          zoomSlider.value = 100;
-      }
-    }
-  }
-
-  doubleZoomLevel(um);
-  $('.zoom-value').html(renderer.zoom + 'x');
-  zoomSlider.oninput = () => {
-    let zoom = zoomSlider.value / 100;
-    $('.zoom-value').html(zoom + 'x');
-    renderer.zoom = zoom;
-  };
-
   $('input:radio[name=m]').click(() => {
     let rid = $('input:radio[name="m"]:checked').attr('id');
-    doubleZoomLevel(rid);
   });
 
   colorMapAlphaSlider.value = renderer.colorMapAlpha * 100;

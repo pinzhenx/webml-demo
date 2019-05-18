@@ -56,6 +56,10 @@ function showModel(div, modelcategory) {
 $(document).ready(function () {
   showModel('#modelcv-ic tbody', imageClassificationModels)
   showModel('#modelcv-od tbody', objectDetectionModels)
-  showModel('#modelcv-hpe tbody', humanPoseEstimationModels)
+  showModel('#modelcv-sd tbody', humanPoseEstimationModels)
   showModel('#modelcv-ss tbody', semanticSegmentationModels)
+  showModel('#modelcv-sr tbody', superResolutionModels)
+  showModel('#modelcv-odf tbody', faceDetectionModels)
+  showModel('#modelcv-fld tbody', facialLandmarkDetectionModels)
+  showModel('#modelcv-ea tbody', emotionAnalysisModels)
 });

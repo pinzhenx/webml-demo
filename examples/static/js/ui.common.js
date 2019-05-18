@@ -20,6 +20,30 @@ const isWebML = () => {
   }
 }
 
+let up = getUrlParam('prefer');
+let ub = getUrlParam('b');
+let um = getUrlParam('m');
+let ut = getUrlParam('t');
+let us = getUrlParam('s');
+let ud = getUrlParam('d');
+let strsearch;
+let skeletonDetectionPath = location.pathname.toLocaleLowerCase().indexOf('skeleton_detection');
+let facialLandmarkDetectionPath = location.pathname.toLocaleLowerCase().indexOf('facial_landmark_detection');
+
+
+if (!location.search) {
+  if (skeletonDetectionPath > -1) {
+    strsearch = `?prefer=none&b=none&s=image&d=0`;
+    currentBackend = 'none';
+    let path = location.href;
+    location.href = path + strsearch;
+  } else {
+    strsearch = `?prefer=none&b=WASM&m=none&t=none&s=image&d=0`;
+    let path = location.href;
+    location.href = path + strsearch;
+  }
+}
+
 const toggleFullScreen = () => {
   let doc = window.document;
   let docEl = doc.documentElement;
@@ -35,12 +59,77 @@ const toggleFullScreen = () => {
   }
 }
 
+const hybridRow = (currentBackend, currentPrefer, offloadops) => {
+  if(offloadops && offloadops.size > 0 && currentBackend != 'WebML' && currentPrefer != 'none') {
+    $('.offload').fadeIn();
+    let offloadopsvalue = '';
+    offloadops.forEach((value) => {
+      let t = '<span class="ol">' + operationTypes[value] + '</span>';
+      offloadopsvalue += t;
+    })
+    $(".ol").remove();
+    $("#offloadops").html(`Following ops were offloaded to <span id='nnbackend' class='ols'></span> from <span id='polyfillbackend' class='ols'></span>: `);
+    $("#offloadops").append(offloadopsvalue).append(`<span data-toggle="modal" class="subgraph-btn" data-target="#subgraphModal">View Subgraphs</span>`);
+    $("#nnbackend").html(currentPrefer);
+    $("#polyfillbackend").html(currentBackend);
+  } else {
+    $('.offload').hide();
+  }
+}
+
+const showSubGraphsSummary = (summary) => {
+  if(summary) {
+    let listhtml = '';
+    for(let i in summary) {
+      let backend = summary[i].split(':')[0].toLowerCase();
+      let subgraphlist = summary[i].split(':')[1].replace(/ /g, '').replace('{', '').replace('}', '').replace(/,/g, ' ');
+      let tmp;
+
+      if(backend.indexOf('webnn') >-1) {
+        tmp = `<li><div class="timeline-badge tb-webnn"><i class="glyphicon">WebNN</i></div><div class="timeline-panel tp-webnn"><div class="timeline-body"><p>${subgraphlist}</p></div></div></li>`;
+      } else if (backend.indexOf('wasm') >-1) {
+        tmp = `<li class="timeline-inverted"><div class="timeline-badge tb-wasm"><i class="glyphicon">WASM</i></div><div class="timeline-panel tp-wasm"><div class="timeline-body"><p>${subgraphlist}</p></div></div></li>`;
+      } else if (backend.indexOf('webgl') >-1) {
+        tmp = `<li class="timeline-inverted"><div class="timeline-badge tb-webgl"><i class="glyphicon">WebGL</i></div><div class="timeline-panel tp-webgl"><div class="timeline-body"><p>${subgraphlist}</p></div></div></li>`;
+      }
+
+      listhtml += tmp;
+    }
+    $('#subgraph').html(listhtml);
+  }
+}
+
+const setPreferenceCodeToolTip = () => {
+  if($('#backendpolyfilltitle')) {
+    $('#backendpolyfilltitle').attr('data-html', 'true')
+    .attr('data-placement', 'bottom')
+    .attr('title',
+      `<div class="backendtooltip">WASM: Compiled Tensorflow Lite C++ kernels to WebAssembly format.<br>
+      WebGL: Tensorflow.js WebGL kernel.</div>`
+    );
+    $('#backendpolyfilltitle').tooltip();
+  }
+  if($('#backendwebnntitle')) {
+    $('#backendwebnntitle').attr('data-html', 'true')
+    .attr('data-placement', 'bottom')
+    .attr('title',
+      `<div class="backendtooltip">FAST_SINGLE_ANSWER: Prefer returning a single answer as fast as possible, even if this causes more power consumption.<br>
+      SUSTAINED_SPEED: Prefer maximizing the throughput of successive frames, for example when processing successive frames coming from the camera.<br>
+      LOW_POWER: Prefer executing in a way that minimizes battery drain. This is desirable for compilations that will be executed often.</div>`
+    );
+    $('#backendwebnntitle').tooltip();
+  }
+}
+
 const updateTitle = (name, backend, prefer, model, modeltype) => {
   model = model.replace(/_/g, ' ');
   let currentprefertext = {
-    fast: 'FAST_SINGLE_ANSWER',
-    sustained: 'SUSTAINED_SPEED',
-    low: 'LOW_POWER',
+    // fast: 'FAST_SINGLE_ANSWER',
+    // sustained: 'SUSTAINED_SPEED',
+    // low: 'LOW_POWER',
+    fast: 'FAST',
+    sustained: 'SUSTAINED',
+    low: 'LOW',   
     none: 'None',
   }[prefer];
 
@@ -51,7 +140,12 @@ const updateTitle = (name, backend, prefer, model, modeltype) => {
   if (backend !== 'WebML' && prefer !== 'none') {
     backendtext = backend + ' + WebNN';
   }
-  $('#ictitle').html(`${name} / ${backendtext} / ${currentprefertext} / ${model} (${modeltype})`);
+
+  if(currentprefertext === 'None') {
+    $('#ictitle').html(`${name} / ${backendtext} / ${model} (${modeltype})`);
+  } else {
+    $('#ictitle').html(`${name} / ${backendtext} (${currentprefertext}) / ${model} (${modeltype})`);
+  }
 }
 
 $('#header').sticky({ topSpacing: 0, zIndex: '50' });
@@ -74,6 +168,14 @@ $('.scrolltop, #logo a').click(() => {
 });
 
 $(document).ready(() => {
+  if(navigator.userAgent.toLowerCase().indexOf("edge") > -1) {
+    if(location.pathname.toLocaleLowerCase() === '/examples/' || location.pathname.toLocaleLowerCase().indexOf('/examples/index') >-1 || location.pathname.toLocaleLowerCase().indexOf('/examples/model') >-1) {
+      $('#logo').html('<img src="static/img/edge_logo.png">')
+    } else {
+      $('#logo').html('<img src="../static/img/edge_logo.png">')
+    }
+  }
+
   $('.nav-menu').superfish({
     animation: { opacity: 'show' },
     speed: 400
@@ -132,30 +234,10 @@ $(document).ready(() => {
     $('#l-WebML').removeClass('dnone');
     $('#webmlstatus').addClass('webml-status-true').html('supported');
   }
+
+  setPreferenceCodeToolTip();
+
 });
-
-let up = getUrlParam('prefer');
-let ub = getUrlParam('b');
-let um = getUrlParam('m');
-let ut = getUrlParam('t');
-let us = getUrlParam('s');
-let ud = getUrlParam('d');
-let strsearch;
-let skeletonDetectionPath = location.pathname.toLocaleLowerCase().indexOf('skeleton_detection');
-
-
-if (!location.search) {
-  if (skeletonDetectionPath > -1) {
-    strsearch = `?prefer=none&b=none&s=image&d=0`;
-    currentBackend = 'none';
-    let path = location.href;
-    location.href = path + strsearch;
-  } else {
-    strsearch = `?prefer=none&b=WASM&m=none&t=none&s=image&d=0`;
-    let path = location.href;
-    location.href = path + strsearch;
-  }
-}
 
 const componentToggle = () => {
   $('#header-sticky-wrapper').slideToggle();
@@ -184,6 +266,26 @@ const checkedModelStyle = () => {
     $('#' + m_t).attr('checked', 'checked');
     $('#l-' + m_t).addClass('checked');
   }
+}
+
+const updateBackendRadioUI = (backend, prefer) => {
+  let polyfillId = $('input:radio[name="bp"]:checked').attr('id') || $('input:radio[name="bp"][checked="checked"]').attr('id');
+  let webnnId = $('input:radio[name="bw"]:checked').attr('id') || $('input:radio[name="bw"][checked="checked"]').attr('id');
+  if (backend !== 'none' && backend.toLocaleLowerCase() !== 'webml' && prefer !== 'none') {
+    $('.backend label').removeClass('x');
+    $('#l-' + polyfillId).addClass('x');
+    $('#l-' + webnnId).addClass('x');
+    $('.backendtitle').html('Backends');
+    $('#backendswitch').prop('checked', true);
+  } else {
+    $('.backend label').removeClass('x');
+    $('.backendtitle').html('Backend');
+    $('#backendswitch').prop('checked', false);
+  }
+}
+
+let isBackendSwitch = () => {
+  return $('#backendswitch').is(':checked')
 }
 
 $(document).ready(() => {
@@ -218,73 +320,162 @@ $(document).ready(() => {
     $('#' + getUrlParam('prefer')).attr('checked', 'checked');
     $('#l-' + getUrlParam('prefer')).addClass('checked');
   }
+
+  updateBackendRadioUI(ub, up);
 });
 
 
 if (skeletonDetectionPath <= -1) {
   $(document).ready(() => {
 
-    $('input:radio[name=bp]').click(() => {
+    $('#backendswitch').click(() => {
       $('.alert').hide();
       let polyfillId = $('input:radio[name="bp"]:checked').attr('id') || $('input:radio[name="bp"][checked="checked"]').attr('id');
+      let webnnId = $('input:radio[name="bw"]:checked').attr('id') || $('input:radio[name="bw"][checked="checked"]').attr('id');
+      $('.b-polyfill input').removeAttr('checked');
+      $('.b-polyfill label').removeClass('checked');
+      $('.b-webnn input').removeAttr('checked');
+      $('.b-webnn label').removeClass('checked');
 
-      if (polyfillId !== currentBackend) {
-        $('.b-polyfill input').removeAttr('checked');
-        $('.b-polyfill label').removeClass('checked');
-        $('#' + polyfillId).attr('checked', 'checked');
-        $('#l-' + polyfillId).addClass('checked');
-      } else if (currentPrefer === 'none') {
-        showAlert('Select at least one backend');
-        return;
+      if(!isBackendSwitch()) {
+        $('.backendtitle').html('Backend');
+        if (polyfillId) {
+          $('#' + polyfillId).attr('checked', 'checked');
+          $('#l-' + polyfillId).addClass('checked');
+          currentBackend = polyfillId;
+          currentPrefer = 'none';
+        } else if (webnnId) {
+          $('#' + webnnId).attr('checked', 'checked');
+          $('#l-' + webnnId).addClass('checked');
+          currentBackend = 'WebML';
+          currentPrefer = webnnId;
+        } else {
+          $('#WASM').attr('checked', 'checked');
+          $('#l-WASM').addClass('checked');
+          currentBackend = 'WASM';
+          currentPrefer = 'none';
+        }
+        updateTitle('Sole Backend', currentBackend, currentPrefer, `${um}`, `${ut}`);
       } else {
-        $('.b-polyfill input').removeAttr('checked');
-        $('.b-polyfill label').removeClass('checked');
-        polyfillId = 'WebML';
+        $('.backendtitle').html('Backends');
+        if (polyfillId && webnnId) {
+          $('#' + polyfillId).attr('checked', 'checked');
+          $('#l-' + polyfillId).addClass('checked');
+          $('#' + webnnId).attr('checked', 'checked');
+          $('#l-' + webnnId).addClass('checked');
+          currentBackend = polyfillId;
+          currentPrefer = webnnId;
+        } else if (polyfillId) {
+          $('#' + polyfillId).attr('checked', 'checked');
+          $('#l-' + polyfillId).addClass('checked');
+          $('#fast').attr('checked', 'checked');
+          $('#l-fast').addClass('checked');
+          currentBackend = polyfillId;
+          currentPrefer = 'fast';
+        } else if (webnnId) {
+          $('#WASM').attr('checked', 'checked');
+          $('#l-WASM').addClass('checked');
+          $('#' + webnnId).attr('checked', 'checked');
+          $('#l-' + webnnId).addClass('checked');
+          currentBackend = 'WASM';
+          currentPrefer = webnnId;
+        } else {
+          $('#WASM').attr('checked', 'checked');
+          $('#l-WASM').addClass('checked');
+          $('#fast').attr('checked', 'checked');
+          $('#l-fast').addClass('checked');
+          currentBackend = 'WASM';
+          currentPrefer = 'fast';
+        }
+        updateTitle('Dual Backends', currentBackend, currentPrefer, `${um}`, `${ut}`);
       }
 
-      currentBackend = polyfillId;
+      updateBackendRadioUI(currentBackend, currentPrefer);
       strsearch = `?prefer=${currentPrefer}&b=${currentBackend}&m=${um}&t=${ut}&s=${us}&d=${ud}`;
       window.history.pushState(null, null, strsearch);
-
       if (um === 'none') {
         showError('No model selected', 'Please select a model to start prediction.');
         return;
       }
+      updateBackend(us === 'camera', true);
+    })
 
-      utils.backend = '';
-      updateBackend(us === 'camera');
+    $('input:radio[name=bp]').click(() => {
+      $('.alert').hide();
+      let polyfillId = $('input:radio[name="bp"]:checked').attr('id') || $('input:radio[name="bp"][checked="checked"]').attr('id');
+      if(isBackendSwitch()) {
+        if (polyfillId !== currentBackend) {
+          $('.b-polyfill input').removeAttr('checked');
+          $('.b-polyfill label').removeClass('checked');
+          $('#' + polyfillId).attr('checked', 'checked');
+          $('#l-' + polyfillId).addClass('checked');
+        } else if (currentPrefer === 'none') {
+          showAlert('At least one backend required, please select other backends if needed.');
+          return;
+        } else {
+          $('.b-polyfill input').removeAttr('checked');
+          $('.b-polyfill label').removeClass('checked');
+          polyfillId = 'WebML';
+        }
+        currentBackend = polyfillId;
+        updateBackendRadioUI(currentBackend, currentPrefer);
+      } else {
+        $('.b-polyfill input').removeAttr('checked');
+        $('.b-polyfill label').removeClass('checked');
+        $('.b-webnn input').removeAttr('checked');
+        $('.b-webnn label').removeClass('checked');
+        $('#' + polyfillId).attr('checked', 'checked');
+        $('#l-' + polyfillId).addClass('checked');
+        currentBackend = polyfillId;
+        currentPrefer = 'none';
+      }
+
+      strsearch = `?prefer=${currentPrefer}&b=${currentBackend}&m=${um}&t=${ut}&s=${us}&d=${ud}`;
+      window.history.pushState(null, null, strsearch);
+      if (um === 'none') {
+        showError('No model selected', 'Please select a model to start prediction.');
+        return;
+      }
+      updateBackend(us === 'camera', true);
     });
 
     $('input:radio[name=bw]').click(() => {
       $('.alert').hide();
-
       let webnnId = $('input:radio[name="bw"]:checked').attr('id') || $('input:radio[name="bw"][checked="checked"]').attr('id');
-
-      if (webnnId !== currentPrefer) {
+      if(isBackendSwitch()) {
+        if (webnnId !== currentPrefer) {
+          $('.b-webnn input').removeAttr('checked');
+          $('.b-webnn label').removeClass('checked');
+          $('#' + webnnId).attr('checked', 'checked');
+          $('#l-' + webnnId).addClass('checked');
+        } else if (currentBackend === 'WebML') {
+          showAlert('At least one backend required, please select other backends if needed.');
+          return;
+        } else {
+          $('.b-webnn input').removeAttr('checked');
+          $('.b-webnn label').removeClass('checked');
+          webnnId = 'none';
+        }
+        currentPrefer = webnnId;
+        updateBackendRadioUI(currentBackend, currentPrefer);
+      }
+      else {
+        $('.b-polyfill input').removeAttr('checked');
+        $('.b-polyfill label').removeClass('checked');
         $('.b-webnn input').removeAttr('checked');
         $('.b-webnn label').removeClass('checked');
         $('#' + webnnId).attr('checked', 'checked');
         $('#l-' + webnnId).addClass('checked');
-      } else if (currentBackend === 'WebML') {
-        showAlert('Select at least one backend');
-        return;
-      } else {
-        $('.b-webnn input').removeAttr('checked');
-        $('.b-webnn label').removeClass('checked');
-        webnnId = 'none';
+        currentBackend = 'WebML';
+        currentPrefer = webnnId;
       }
-
-      currentPrefer = webnnId;
       strsearch = `?prefer=${currentPrefer}&b=${currentBackend}&m=${um}&t=${ut}&s=${us}&d=${ud}`;
       window.history.pushState(null, null, strsearch);
-
       if (um === 'none') {
         showError('No model selected', 'Please select a model to start prediction.');
         return;
       }
-
-      utils.backend = '';
-      updateBackend(us === 'camera');
+      updateBackend(us === 'camera', true);
     });
 
     $('input:radio[name=m]').click(() => {
@@ -394,10 +585,11 @@ if (skeletonDetectionPath <= -1) {
 
 const showProgress = async (text) => {
   $('#progressmodel').show();
-  await $('#progressstep').html(text);
+  $('#progressstep').html(text);
   $('.shoulddisplay').hide();
   $('.icdisplay').hide();
   $('#resulterror').hide();
+  await new Promise(res => setTimeout(res, 100));
 }
 
 const showResults = () => {
